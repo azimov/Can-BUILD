@@ -43,13 +43,7 @@ shinyConfig <- OhdsiShinyAppBuilder::initializeModuleConfig() |>
   ) |>
   OhdsiShinyAppBuilder::addModuleConfig(
     OhdsiShinyAppBuilder::createDefaultCharacterizationConfig()
-  ) |>
-  OhdsiShinyAppBuilder::addModuleConfig(
-    OhdsiShinyAppBuilder::createDefaultPredictionConfig()
-  ) |>
-  OhdsiShinyAppBuilder::addModuleConfig(
-    OhdsiShinyAppBuilder::createDefaultEstimationConfig()
-  ) 
+  )
 
 # now create the shiny app based on the config file and view the results
 # based on the connection 
