@@ -74,7 +74,23 @@ template_docs/                         Generic documentation for this study temp
 
    Restart R afterwards.
 
-2. Create the analysis specification (only needed after a design change):
+2. Install **Java 17 or newer** and point `JAVA_HOME` at it. The pinned
+   DatabaseConnector 8.0.0 fails on Java 8 (`NoSuchMethodError:
+   java.nio.ByteBuffer.clear()`) when it reads an `int8` column. On this machine:
+
+   ```bash
+   export JAVA_HOME=/opt/homebrew/opt/openjdk/libexec/openjdk.jdk/Contents/Home
+   ```
+
+3. Give DatabaseConnector the JDBC driver. Either download it once:
+
+   ```r
+   DatabaseConnector::downloadJdbcDrivers("postgresql")
+   ```
+
+   or point `DATABASECONNECTOR_JAR_FOLDER` at a folder that already has it.
+
+4. Create the analysis specification (only needed after a design change):
 
    ```r
    source("scriptsForStudyDesigner/CreateStrategusAnalysisSpecifications.R")
@@ -82,7 +98,7 @@ template_docs/                         Generic documentation for this study temp
 
    This writes `inst/analysisSpecifications.json`.
 
-3. Edit the INPUTS section at the top of `ExecuteAnalyses.R` for your database,
+5. Edit the INPUTS section at the top of `ExecuteAnalyses.R` for your database,
    then run it:
 
    ```r

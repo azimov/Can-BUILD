@@ -37,12 +37,18 @@ minCellCount <- 5 # Minimum cell count for inclusion in output tables
 # OHDSI Lab credentials; the environment variables let you point the same script
 # at another machine without editing it.
 # More details: https://ohdsi.github.io/DatabaseConnector/reference/createConnectionDetails.html
+#
+# DatabaseConnector needs a JDBC driver to talk to the database. Set
+# DATABASECONNECTOR_JAR_FOLDER to the folder holding it (the lab keeps it in
+# ohdsi-lab/analysis/.jdbc), or download it once with
+# DatabaseConnector::downloadJdbcDrivers("postgresql").
 connectionDetails <- DatabaseConnector::createConnectionDetails(
   dbms = Sys.getenv("OHDSI_DBMS", "postgresql"),
   server = Sys.getenv("OHDSI_SERVER", "127.0.0.1/postgres"),
   port = as.integer(Sys.getenv("OHDSI_PORT", "5432")),
   user = Sys.getenv("OHDSI_USER", "postgres"),
-  password = Sys.getenv("OHDSI_PASSWORD", "mypass")
+  password = Sys.getenv("OHDSI_PASSWORD", "mypass"),
+  pathToDriver = Sys.getenv("DATABASECONNECTOR_JAR_FOLDER")
 )
 
 # You can use this snippet to test your connection
