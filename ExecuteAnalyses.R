@@ -13,27 +13,36 @@
 renv::restore()
 
 # ENVIRONMENT SETTINGS NEEDED FOR RUNNING STUDY ------------
-Sys.setenv("_JAVA_OPTIONS"="-Xmx4g") # Sets the Java maximum heap space to 4GB
-Sys.setenv("VROOM_THREADS"=1) # Sets the number of threads to 1 to avoid deadlocks on file system
+Sys.setenv("_JAVA_OPTIONS" = "-Xmx4g") # Sets the Java maximum heap space to 4GB
+Sys.setenv("VROOM_THREADS" = 1) # Sets the number of threads to 1 to avoid deadlocks on file system
 
 ##=========== START OF INPUTS ==========
-options(sqlRenderTempEmulationSchema = "scratch.scratch_mschuemi") # For database platforms that don't support temp tables
-cdmDatabaseSchema <- "merative_ccae.cdm_merative_ccae_v3046" # The database / schema where the data in CDM format live
-workDatabaseSchema <- "scratch.scratch_mschuemi" # A database /schema where study tables can be written
-cohortTableName <- "example_strategus_study_ccae" # Where the cohorts will be written
-resultsFolder <- "e:/exampleStrategusStudy/results" # Where the output files will be written
-workFolder <- "e:/exampleStrategusStudy/strategusInternals" # Where the intermediate work files will be written
-databaseName <- "CCAE" # Only used as a folder name for results from the study
+# These values point at the local OHDSI Lab on this machine. Change them for
+# any other database.
+#
+#   cdm_vocab is a view layer over the lab's clinical schema (cdm) and its
+#   vocabulary schema (vocab). The lab keeps the two apart; this study, like
+#   every other HADES analysis, needs them in a single schema. If your site has
+#   a normal OMOP CDM with the vocabulary tables in it, just use that schema
+#   name here (e.g. "cdm").
+cdmDatabaseSchema <- "cdm_vocab"
+workDatabaseSchema <- "can_build" # Where the study tables are written
+cohortTableName <- "can_build_cohort" # Where the cohorts will be written
+resultsFolder <- "results" # Where the output files will be written
+workFolder <- "strategusInternals" # Where the intermediate work files will be written
+databaseName <- "SYNTHEA10K" # Only used as a folder name for results from the study
 minCellCount <- 5 # Minimum cell count for inclusion in output tables
 
-# Create the connection details for your CDM
-# More details on how to do this are found here:
-# https://ohdsi.github.io/DatabaseConnector/reference/createConnectionDetails.html
+# Create the connection details for your CDM. The defaults below are the local
+# OHDSI Lab credentials; the environment variables let you point the same script
+# at another machine without editing it.
+# More details: https://ohdsi.github.io/DatabaseConnector/reference/createConnectionDetails.html
 connectionDetails <- DatabaseConnector::createConnectionDetails(
-  dbms = "spark",
-  connectionString = keyring::key_get("databricksConnectionString"),
-  user = "token",
-  password = keyring::key_get("databricksToken")
+  dbms = Sys.getenv("OHDSI_DBMS", "postgresql"),
+  server = Sys.getenv("OHDSI_SERVER", "127.0.0.1/postgres"),
+  port = as.integer(Sys.getenv("OHDSI_PORT", "5432")),
+  user = Sys.getenv("OHDSI_USER", "postgres"),
+  password = Sys.getenv("OHDSI_PASSWORD", "mypass")
 )
 
 # You can use this snippet to test your connection
@@ -49,6 +58,7 @@ config <- config::get()
 
 resultsFolder <- file.path(resultsFolder, databaseName)
 workFolder <- file.path(workFolder, databaseName)
+cohortTableNames <- CohortGenerator::getCohortTableNames(cohortTable = cohortTableName)
 
 analysisSpecifications <- ParallelLogger::loadSettingsFromJson(
   fileName = file.path(config$projectRootFolder, "inst", config$studySpecificationFileName)
@@ -57,13 +67,13 @@ analysisSpecifications <- ParallelLogger::loadSettingsFromJson(
 executionSettings <- Strategus::createCdmExecutionSettings(
   workDatabaseSchema = workDatabaseSchema,
   cdmDatabaseSchema = cdmDatabaseSchema,
-  cohortTableNames = CohortGenerator::getCohortTableNames(cohortTable = cohortTableName),
+  cohortTableNames = cohortTableNames,
   workFolder = workFolder,
   resultsFolder = resultsFolder,
   minCellCount = minCellCount
   # IF YOU NEED TO RE-RUN A STUDY BUT ONLY WANT TO RUN SPECIFIC MODULES,
   # USE modulesToExecute:
-  # , modulesToExecute = c("CohortGeneratorModule", "SelfControlledCaseSeriesModule")
+  # , modulesToExecute = c("CohortGeneratorModule", "CharacterizationModule")
 )
 
 if (!dir.exists(resultsFolder)) {
@@ -77,6 +87,21 @@ if (!dir.exists(workFolder)) {
 ParallelLogger::saveSettingsToJson(
   object = executionSettings,
   fileName = file.path(resultsFolder, "executionSettings.json")
+)
+
+# Build the calendar-year target cohorts -------------------
+# These cohorts are SQL, not Circe/ATLAS cohort definitions (see
+# scriptsForStudyDesigner/BuildCalendarYearCohorts.R), so Strategus cannot build
+# them as part of the run. They are created first, in the same cohort table the
+# Strategus modules read, and the CohortGenerator module then adds the outcome
+# cohorts on top.
+source("scriptsForStudyDesigner/BuildCalendarYearCohorts.R")
+
+buildCalendarYearCohorts(
+  connectionDetails = connectionDetails,
+  cdmDatabaseSchema = cdmDatabaseSchema,
+  cohortDatabaseSchema = workDatabaseSchema,
+  cohortTableNames = cohortTableNames
 )
 
 Strategus::execute(
