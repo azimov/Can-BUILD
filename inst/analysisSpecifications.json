@@ -1,6 +1,6 @@
 {
   "strategusVersion": "1.6.0",
-  "strategusPackageHash": "8301f0199500ad9c2df3ff0fb03124a9",
+  "strategusPackageHash": "d056dbbde4f2405889601f3dc6951bb8",
   "sharedResources": [
     {
       "cohortDefinitions": [
@@ -90,7 +90,7 @@
       },
       "modulePackage": "CohortDiagnostics",
       "modulePackageVersion": "3.4.2",
-      "modulePackageHash": "c2e131133dcb98098c84f0be66c6e4d7",
+      "modulePackageHash": "08c500e637eee83c9a6b4f8cafc243e9",
       "attr_class": ["ModuleSpecifications", "CohortDiagnosticsModuleSpecifications"]
     },
     {
