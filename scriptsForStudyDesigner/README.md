@@ -91,8 +91,10 @@ outcomes <- tibble::tribble(
 must pass between two events before the second one counts as a new event.
 
 **These two cohorts are placeholders** until the real outcome cohorts are
-defined in ATLAS. Replace the IDs (and the rows in `inst/Cohorts.csv`) when
-they are.
+defined in ATLAS. When they are: add them to the `cohortsToDownload` table in
+`DownloadAssets.R` and run it (it regenerates `inst/Cohorts.csv` from ATLAS),
+then replace the IDs here. The script stops if an outcome ID is missing from
+`inst/Cohorts.csv`.
 
 ### 3. Time at risk
 

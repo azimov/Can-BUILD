@@ -186,9 +186,15 @@ Two things in this repository are deliberate stand-ins:
 
 To swap in the real outcome cohorts: define them in ATLAS, add them to the
 `cohortsToDownload` table in `scriptsForStudyDesigner/DownloadAssets.R` and run
-that script, update `inst/Cohorts.csv` and the `outcomes` table in
-`CreateStrategusAnalysisSpecifications.R`, then re-create the analysis
-specification.
+that script. It regenerates `inst/Cohorts.csv`, `inst/cohorts/` and
+`inst/sql/sql_server/` from ATLAS, which also removes the placeholder cohorts.
+Then update the `outcomes` table in
+`CreateStrategusAnalysisSpecifications.R` to the new cohort IDs and re-create
+the analysis specification. The script stops if the IDs in `outcomes` are not in
+`inst/Cohorts.csv`, so a mismatch is caught immediately.
+
+`DownloadAssets.R` does not touch `inst/sql/calendar_year/`: the calendar-year
+cohorts are not ATLAS cohorts and survive an asset refresh.
 
 ## Documentation
 
