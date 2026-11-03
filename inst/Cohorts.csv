@@ -1,4 +1,3 @@
 atlas_id,cohort_id,cohort_name,logic_description,generate_stats
-1778211,11,celecoxib,NA,TRUE
-1790989,21,diclofenac,NA,TRUE
-1780946,31,GI Bleed,NA,TRUE
+NA,101,PLACEHOLDER outcome 1 - type 2 diabetes,PLACEHOLDER - replace with the real outcome cohort from ATLAS,TRUE
+NA,102,PLACEHOLDER outcome 2 - essential hypertension,PLACEHOLDER - replace with the real outcome cohort from ATLAS,TRUE
