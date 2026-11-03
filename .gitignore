@@ -69,3 +69,5 @@ unitTest/
 # JNJ Specific
 jnj/
 jnj/*/
+# Strategus / DatabaseConnector error reports
+errorReportSql.txt

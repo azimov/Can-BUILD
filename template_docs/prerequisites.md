@@ -119,7 +119,7 @@ When SFTP is used, Site Participants enter the upload settings provided by the S
 - R, RStudio, RTools, Java, and restored `renv` environment.
 - Access to the ATLAS/WebAPI instance used to retrieve cohort definitions.
 - Ability to run `scriptsForStudyDesigner/DownloadAssets.R`.
-- Ability to review and edit starting assets such as negative controls and covariates to exclude.
+- Ability to review and edit the cohort assets in `inst/` (cohort IDs, SQL, and the placeholder outcome cohorts).
 - Ability to run `scriptsForStudyDesigner/CreateStrategusAnalysisSpecifications.R`.
 - Access to a test OMOP CDM or synthetic database for validating the study package.
 

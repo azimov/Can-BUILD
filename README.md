@@ -1,64 +1,201 @@
-StrategusStudyRepoTemplate
-=================
+Can-BUILD
+=========
 
-See the **[Using This Template.md](template_docs/UsingThisTemplate.md)** for more information on how to use this template.
+<img src="https://img.shields.io/badge/Study%20Status-Started-blue.svg" alt="Study Status: Started">
 
-----
+- Analytics use case(s): **Characterization**
+- Study type: **Clinical Application**
+- Tags: **-**
+- Study lead: **-**
+- Study lead forums tag: **-**
+- Study start date: **-**
+- Study end date: **-**
+- Protocol: **-**
+- Publications: **-**
+- Results explorer: **-**
 
-An OHDSI study repository is expected to have a README.md file where the header conforms to a standard. A template README file is provided here:
+Can-BUILD is a [Strategus](https://ohdsi.github.io/Strategus/) study that
+produces **incidence rates**: how often each outcome of interest occurs per 100
+person-years, in each calendar year.
 
-**[README file template](template_docs/templateREADME.md)**
+## What the study does
 
-When initiating a repository, please copy this file, rename it to 'README.md', and fill in the fields as appropriate.
+**Targets** are calendar-year cohorts. There is one cohort per year (2015-2024)
+containing everyone who was under observation in that year, with person time
+running from their first observed day in the year to their last. Those cohorts
+are the denominators of the incidence rates.
 
-The information in the repository README file will be used to automatically update the [list of OHDSI research studies](https://data.ohdsi.org/OhdsiStudies/), so it is important to fill in the template accurately, and keep it up-to-date.
+"Everyone under observation in a calendar year" cannot be written as an
+ATLAS/Circe cohort definition, so the calendar-year cohorts are plain SQL
+(`inst/sql/calendar_year/<year>.sql`). They are built before the Strategus run by
+`scriptsForStudyDesigner/BuildCalendarYearCohorts.R`, which `ExecuteAnalyses.R`
+calls for you.
 
-## Elements in the README template
+**Outcomes** are the events being counted. They are ordinary ATLAS cohorts, and
+this repository currently ships **two placeholder outcomes** (cohort IDs 101 and
+102) because the real outcome cohorts have not been defined in ATLAS yet. See
+[Placeholders](#placeholders) below.
 
-| Element | Description |
-| ------- | ----------- |
-| [Study title]      | A meaningful title of the research project.            
-| Study status badge | A badge indicating the study status. See [below](#study-status) for valid options. |
-| Analytics use case | One or more analytics use cases included in the study (in a comma-separated list). See [below](#analytics-use-cases) for valid options. |
-| Study type | The type of study. See [below](#study-types) for valid options. |
-| Tags | Zero, one, or more additional keywords that can be used to filter the list of studies. The list of tags is not restricted, but be conservative in making up new tags. For example: `EHDEN` to identify studies that are part of the [EHDEN project](https://www.ehden.eu/). |
-| Study lead | The name of the study lead.|
-| Study lead forums tag | The OHDSI forums tag of the study lead, which can be used to contact the lead. It is recommended to make this a hyperlink to lead's forums profile |
-| Study start date | When did work on the study commence? This date typically indicates when development of the protocol was initiated. Format: [Month] [Day], [Year] (e.g. May 1, 2019)|
-| Study end date | When was the study completed? This typically indicates when the analyses were completed and the results have been collected. Do not enter future (planned) dates here. Format: [Month] [Day], [Year] (e.g. May 1, 2019)| 
-| Protocol | A hyperlink to the protocol. The protocol is expected to be a document in the study repository itself. | 
-| Publications | Zero, one or more hyperlinks to papers produced as part of the study (comma-separated). | 
-| Results explorer | A hyperlink to a web app (e.g. a Shiny app) where the results of the study can be explored. |
+**Analysis** is done with the HADES Characterization package (v4 settings API):
 
-### Study Status
+| Module | What it contributes |
+|---|---|
+| CohortGenerator | Builds the outcome cohorts |
+| CohortDiagnostics | Checks the outcome cohorts (inclusion rules, orphan concepts, incidence rate, ...) |
+| Characterization | Baseline characteristics of each year cohort, **and the incidence rates** (`c_incidence_summary`) |
 
-Choose one of the following options:
+There is no population-level estimation and no patient-level prediction in this
+study, so CohortMethod, SelfControlledCaseSeries and PatientLevelPrediction are
+not used.
 
-| Badge             | Description                          |
-| ----------------- | ------------------------------------ |
-| <img src="https://img.shields.io/badge/Study%20Status-Repo%20Created-lightgray.svg" alt="Study Status: Repo Created"> | The study repository has just been created. Work has not yet commenced. | 
-| <img src="https://img.shields.io/badge/Study%20Status-Started-blue.svg" alt="Study Status: Started"> | A first commit was made (to something else than the README file). Work has commenced. |
-| <img src="https://img.shields.io/badge/Study%20Status-Design%20Finalized-brightgreen.svg" alt="Study Status: Design Finalized"> | The protocol and study code have been finalized. | 
-| <img src="https://img.shields.io/badge/Study%20Status-Results%20Available-yellow.svg" alt="Study Status: Results Available"> | The study results are publicly available, for example in a paper or results explorer app. | 
-| <img src="https://img.shields.io/badge/Study%20Status-Complete-orange.svg" alt="Study Status: Complete"> | The study is complete, no further dissemination planned. | 
-| <img src="https://img.shields.io/badge/Study%20Status-Suspended-red.svg" alt="Study Status: Suspended"> | The study has been suspended, and may or may not be continued at a later point in time. | 
+## Repository layout
 
-Copy the relevant markdown code from [this page](badgesMarkdownCode.md), and paste it in your README file, just below the study title.
+```text
+ExecuteAnalyses.R                      Run the study (edit the INPUTS section)
+ShareResults.R                         Zip the results for the study coordinator
+config.yml                             Study name, folders, results database
+inst/analysisSpecifications.json       Generated by CreateStrategusAnalysisSpecifications.R
+inst/Cohorts.csv                       The ATLAS cohorts in the study (the outcome cohorts)
+inst/cohorts/<id>.json                 Circe definitions for the outcome cohorts
+inst/sql/sql_server/<id>.sql           SQL definitions for the ATLAS cohorts
+inst/sql/calendar_year/<year>.sql      SQL definitions for the calendar-year cohorts
+scriptsForStudyDesigner/               Study design: cohorts, analysis specification
+scriptsForStudyCoordinator/            Results database, results model, Shiny app
+template_docs/                         Generic documentation for this study template
+```
 
-### Analytics Use Cases
+## Running the study
 
-Choose one or more options from: 
+1. Install R 4.6.1 and restore the package versions pinned in `renv.lock`:
 
-- `Characterization`
-- `Population-Level Estimation`, or
-- `Patient-Level Prediction` 
+   ```r
+   renv::restore()
+   ```
 
-See [the Data Analytics Use Cases chapter](https://ohdsi.github.io/TheBookOfOhdsi/DataAnalyticsUseCases.html) for more details.
+   Restart R afterwards.
 
-### Study types
+2. Create the analysis specification (only needed after a design change):
 
-Can be either:
+   ```r
+   source("scriptsForStudyDesigner/CreateStrategusAnalysisSpecifications.R")
+   ```
 
-- `Methods Research` if the study explores a methodological question, for example an evaluation of various propensity score approaches. 
-- `Clinical Application` if the study aims to answer a clinically relevant question, for example 'Does drug A cause outcome B?'.
+   This writes `inst/analysisSpecifications.json`.
 
+3. Edit the INPUTS section at the top of `ExecuteAnalyses.R` for your database,
+   then run it:
+
+   ```r
+   source("ExecuteAnalyses.R")
+   ```
+
+   Results are written to `results/<databaseName>/`.
+
+The scripts expect to be run from the project root, because `config.yml` uses
+`getwd()` as the project folder.
+
+On the local OHDSI Lab (a 4 GB Docker VM) the run takes about 17 minutes:
+about 5.5 minutes of cohort diagnostics and 10.5 minutes of characterization.
+Stop the WebAPI and Atlas containers (`docker stop ohdsi-lab-webapi
+ohdsi-lab-atlas3`) while it runs if Postgres is short of memory, and start them
+again afterwards.
+
+## Reading the results
+
+The primary output is
+`results/<databaseName>/CharacterizationModule/c_incidence_summary.csv`: one row
+per target cohort, outcome, age group and gender, with persons at risk, person
+days, events and `incidence_rate_p_100py`.
+
+Characterization numbers the target cohorts internally (10, 20, ...), so join
+back to `c_target_settings.csv` to get the calendar year:
+
+```r
+path <- "results/SYNTHEA10K/CharacterizationModule"
+
+incidence <- readr::read_csv(file.path(path, "c_incidence_summary.csv"))
+targets <- readr::read_csv(file.path(path, "c_target_settings.csv"))
+outcomes <- readr::read_csv(file.path(path, "c_outcome_def.csv"))
+
+overall <- incidence |>
+  dplyr::filter(is.na(age_group_id), is.na(gender_name)) |> # not a stratum
+  dplyr::left_join(
+    targets |> dplyr::select(characterization_target_id, target_id),
+    by = "characterization_target_id"
+  ) |>
+  dplyr::left_join(
+    outcomes |> dplyr::select(outcome_id, outcome_cohort_definition_id),
+    by = "outcome_id"
+  ) |>
+  dplyr::select(
+    year = target_id,
+    outcome = outcome_cohort_definition_id,
+    persons_at_risk,
+    person_days,
+    outcomes,
+    incidence_rate_p_100py
+  )
+```
+
+## Running against the OHDSI Lab on this machine
+
+`ExecuteAnalyses.R` is pre-filled with the local OHDSI Lab settings:
+
+```text
+PostgreSQL 127.0.0.1:5432, database postgres, user postgres, password mypass
+CDM cdm_vocab, work schema can_build
+```
+
+The lab keeps the clinical schema (`cdm`) and the vocabulary (`vocab`) apart,
+while HADES analyses expect both in the CDM schema. `cdm_vocab` is a view layer
+that presents them as one. It is created once with:
+
+```sql
+CREATE SCHEMA IF NOT EXISTS cdm_vocab;
+
+DO $$
+DECLARE r record;
+BEGIN
+  FOR r IN SELECT table_name FROM information_schema.tables
+           WHERE table_schema = 'vocab' AND table_type = 'BASE TABLE' LOOP
+    EXECUTE format('CREATE OR REPLACE VIEW cdm_vocab.%I AS SELECT * FROM vocab.%I',
+                   r.table_name, r.table_name);
+  END LOOP;
+  FOR r IN SELECT table_name FROM information_schema.tables
+           WHERE table_schema = 'cdm' AND table_type = 'BASE TABLE' LOOP
+    IF NOT EXISTS (SELECT 1 FROM information_schema.views
+                   WHERE table_schema = 'cdm_vocab' AND table_name = r.table_name) THEN
+      EXECUTE format('CREATE OR REPLACE VIEW cdm_vocab.%I AS SELECT * FROM cdm.%I',
+                     r.table_name, r.table_name);
+    END IF;
+  END LOOP;
+END $$;
+```
+
+If your site has a normal OMOP CDM with the vocabulary tables inside it, set
+`cdmDatabaseSchema` in `ExecuteAnalyses.R` to that schema instead.
+
+## Placeholders
+
+Two things in this repository are deliberate stand-ins:
+
+| Placeholder | Where | Replace with |
+|---|---|---|
+| Outcome cohorts 101 and 102 | `inst/Cohorts.csv`, `inst/cohorts/101.json`, `inst/cohorts/102.json`, `outcomes` in `CreateStrategusAnalysisSpecifications.R` | The real outcome cohorts, once they are defined in ATLAS |
+| Calendar-year range 2015-2024 | `targetYears` in `CreateStrategusAnalysisSpecifications.R` and the files in `inst/sql/calendar_year/` | The years to report |
+
+To swap in the real outcome cohorts: define them in ATLAS, add them to the
+`cohortsToDownload` table in `scriptsForStudyDesigner/DownloadAssets.R` and run
+that script, update `inst/Cohorts.csv` and the `outcomes` table in
+`CreateStrategusAnalysisSpecifications.R`, then re-create the analysis
+specification.
+
+## Documentation
+
+- [Using this template](template_docs/UsingThisTemplate.md)
+- [Study designer guide](template_docs/study-designer-guide.md)
+- [Site participant guide](template_docs/site-participant-guide.md)
+- [Study coordinator guide](template_docs/study-coordinator-guide.md)
+- [Configuration reference](template_docs/configuration-reference.md)
+- [Strategus documentation](https://ohdsi.github.io/Strategus/)
+- [Characterization documentation](https://ohdsi.github.io/Characterization/)
