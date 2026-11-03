@@ -66,7 +66,7 @@ template_docs/                         Generic documentation for this study temp
 
 ## Running the study
 
-1. Install R 4.6.1 and restore the package versions pinned in `renv.lock`:
+1. Install R 4.6.2 and restore the package versions pinned in `renv.lock`:
 
    ```r
    renv::restore()

@@ -15,7 +15,7 @@
 #
 # REQUIREMENTS
 # ------------
-# R 4.6.1 and the package versions pinned in renv.lock. In particular this
+# R 4.6.2 and the package versions pinned in renv.lock. In particular this
 # script uses the Characterization v4 settings API, which requires
 # Strategus >= 1.6.0 (the CharacterizationModule now lives in Strategus) and
 # Characterization >= 4.0.0.
