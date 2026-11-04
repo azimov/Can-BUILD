@@ -91,12 +91,12 @@ After downloading assets, confirm that the cohort IDs and names match the study 
 ## Review Starting Assets
 
 This study has no starting assets to review: it uses only the cohorts listed in
-`inst/Cohorts.csv`. The calendar-year target cohorts are SQL and the outcome
-cohorts are Circe definitions.
+`inst/Cohorts.csv`, all of which are downloaded from ATLAS.
 
-The repository does include placeholder outcome cohorts (IDs 101 and 102). They
-exist so the pipeline can be built and tested before the real outcome cohorts
-are defined in ATLAS. Replace them before distributing the study - see the
+The repository does include placeholder cohorts from the OHDSI demo ATLAS
+(targets 1 ACE inhibitors and 2 ARBs, outcome 3 first observed cough). They exist so the
+pipeline can be built and tested before the real cohorts are defined. Replace
+them before distributing the study - see the
 [Placeholders](../README.md#placeholders) section of the README.
 
 If the study later adds estimation analyses (CohortMethod, SelfControlledCaseSeries),
@@ -111,7 +111,7 @@ This script loads the cohort assets and starting assets from `inst/`, defines th
 
 The main user-editable areas are:
 
-- `targetIds`: the calendar-year cohorts (cohort IDs are the years).
+- `targetIds`: the target cohorts.
 - `outcomes`: outcome cohort IDs and clean windows. Both cohorts are placeholders
   until the real outcome cohorts are defined in ATLAS.
 - `riskWindowStart`, `startAnchor`, `riskWindowEnd`, `endAnchor`: the time-at-risk
@@ -137,9 +137,7 @@ by using the `studySpecificationFileName` value in `config.yml`.
 
 This study uses three Strategus HADES modules:
 
-- CohortGenerator - builds the outcome cohorts (the calendar-year cohorts are
-  SQL and are built before the Strategus run, see
-  `scriptsForStudyDesigner/BuildCalendarYearCohorts.R`)
+- CohortGenerator - builds all the cohorts
 - CohortDiagnostics - diagnostics for the outcome cohorts
 - Characterization - baseline characteristics and incidence rates
 

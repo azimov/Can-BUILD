@@ -95,21 +95,6 @@ ParallelLogger::saveSettingsToJson(
   fileName = file.path(resultsFolder, "executionSettings.json")
 )
 
-# Build the calendar-year target cohorts -------------------
-# These cohorts are SQL, not Circe/ATLAS cohort definitions (see
-# scriptsForStudyDesigner/BuildCalendarYearCohorts.R), so Strategus cannot build
-# them as part of the run. They are created first, in the same cohort table the
-# Strategus modules read, and the CohortGenerator module then adds the outcome
-# cohorts on top.
-source("scriptsForStudyDesigner/BuildCalendarYearCohorts.R")
-
-buildCalendarYearCohorts(
-  connectionDetails = connectionDetails,
-  cdmDatabaseSchema = cdmDatabaseSchema,
-  cohortDatabaseSchema = workDatabaseSchema,
-  cohortTableNames = cohortTableNames
-)
-
 Strategus::execute(
   analysisSpecifications = analysisSpecifications,
   executionSettings = executionSettings,

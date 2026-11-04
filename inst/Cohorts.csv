@@ -1,3 +1,4 @@
 atlas_id,cohort_id,cohort_name,logic_description,generate_stats
-NA,101,PLACEHOLDER outcome 1 - type 2 diabetes,PLACEHOLDER - replace with the real outcome cohort from ATLAS,TRUE
-NA,102,PLACEHOLDER outcome 2 - essential hypertension,PLACEHOLDER - replace with the real outcome cohort from ATLAS,TRUE
+1662241,1,new users of ACE inhibitors for hypertension,NA,TRUE
+1662246,2,new users of ARBs for hypertension,NA,TRUE
+1662245,3,first observed cough,null,TRUE

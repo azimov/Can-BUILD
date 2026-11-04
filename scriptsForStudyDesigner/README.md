@@ -9,9 +9,9 @@ approval to execute the study.
 
 | | |
 |---|---|
-| Targets | One cohort per calendar year (2015-2024): everyone under observation in that year |
-| Outcomes | Placeholder cohorts 101 and 102 until the real outcome cohorts are defined in ATLAS |
-| Primary output | Incidence rate per 100 person-years, in each year, overall and by age and gender |
+| Targets | Placeholder demo ATLAS cohorts (1 ACE inhibitors, 2 ARBs); the real targets are one cohort per calendar year = everyone with a visit on 1 January |
+| Outcomes | Placeholder demo ATLAS cohort: 3 first observed cough |
+| Primary output | Incidence rate per 100 person-years, by calendar year, overall and by age and gender |
 | Modules | CohortGenerator, CohortDiagnostics (outcome cohorts), Characterization (v4) |
 
 There is no estimation (CohortMethod, SelfControlledCaseSeries) and no
@@ -20,11 +20,9 @@ prediction (PatientLevelPrediction) in this study.
 ## Download study assets
 
 `DownloadAssets.R` downloads cohort definitions from ATLAS into `inst/`
-(`Cohorts.csv`, `inst/cohorts/*.json`, `inst/sql/sql_server/*.sql`).
-
-It is only needed for the cohorts that live in ATLAS - that is, the outcome
-cohorts. The calendar-year cohorts are not ATLAS cohorts: see
-[Calendar-year cohorts](#calendar-year-cohorts) below.
+(`Cohorts.csv`, `inst/cohorts/*.json`, `inst/sql/sql_server/*.sql`). Every
+cohort in the study comes from ATLAS, so this is the only way cohorts get into
+the repository - there is no hand-written cohort SQL.
 
 To use it:
 
@@ -33,29 +31,8 @@ To use it:
    `DownloadAssets.R` (ATLAS cohort ID, local cohort ID, cohort name).
 3. Run the script from the project root.
 
-## Calendar-year cohorts
-
-"Everyone under observation in calendar year Y" cannot be expressed as an
-ATLAS/Circe cohort definition, so these cohorts are plain SQL:
-
-```text
-inst/sql/calendar_year/2015.sql ... inst/sql/calendar_year/2024.sql
-```
-
-Each one takes the overlap of every person's `observation_period` with that
-year: cohort start is the first day the person was observed in the year, cohort
-end is the last. The person-years in those cohorts are the denominators of the
-incidence rates.
-
-These cohorts have no Circe JSON, so they are kept out of `inst/Cohorts.csv`
-(which `DownloadAssets.R` rewrites) and are built directly with CohortGenerator
-by `BuildCalendarYearCohorts.R` before the Strategus run.
-
-To add or remove a year:
-
-1. Copy an existing `inst/sql/calendar_year/<year>.sql` and change the year.
-   The file name is the cohort ID.
-2. Update `targetYears` in `CreateStrategusAnalysisSpecifications.R`.
+The cohorts currently listed are the placeholders from the OHDSI demo ATLAS
+(`https://atlas-demo.ohdsi.org/atlas/`), so the script works as-is.
 
 ## Create the analysis specification
 
@@ -72,26 +49,27 @@ It contains three things you edit.
 ### 1. Targets
 
 ```r
-targetIds <- 2015:2024
+targetIds <- c(1, 2)
 ```
 
-The cohort IDs of the calendar-year cohorts.
+The cohort IDs of the target cohorts. 1 (new users of ACE inhibitors) and
+2 (new users of ARBs) are **placeholders from the OHDSI demo ATLAS**; replace
+them when the real target cohorts are defined.
 
 ### 2. Outcomes
 
 ```r
 outcomes <- tibble::tribble(
   ~cohortId, ~cleanWindow,
-  101,       365,
-  102,       365
+  3,         365
 )
 ```
 
 `cohortId` is the outcome cohort ID. `cleanWindow` is the number of days that
 must pass between two events before the second one counts as a new event.
 
-**These two cohorts are placeholders** until the real outcome cohorts are
-defined in ATLAS. When they are: add them to the `cohortsToDownload` table in
+**Cohort 3 (first observed cough) is a placeholder** from the OHDSI demo ATLAS. When the
+real outcome cohorts exist: add them to the `cohortsToDownload` table in
 `DownloadAssets.R` and run it (it regenerates `inst/Cohorts.csv` from ATLAS),
 then replace the IDs here. The script stops if an outcome ID is missing from
 `inst/Cohorts.csv`.
@@ -105,8 +83,8 @@ riskWindowEnd <- 0
 endAnchor <- "cohort end"
 ```
 
-For a calendar-year cohort this means "from the day after the person's first
-observed day in the year to their last observed day in the year".
+For the demo drug cohorts this means "from the day after the first exposure to
+the end of the exposure", i.e. on-treatment follow-up.
 
 ## How the settings fit together (Characterization v4)
 
@@ -138,11 +116,8 @@ Strategus in 1.6.0) and Characterization >= 4.0.0.
 
 The specification in this repository contains:
 
-- **CohortGeneratorModule** - builds the outcome cohorts (the calendar-year
-  cohorts are built before the run, see above).
+- **CohortGeneratorModule** - builds all the cohorts.
 - **CohortDiagnosticsModule** - cohort diagnostics for the outcome cohorts.
-  The calendar-year cohorts are SQL-only, so there is no concept-level content
-  to diagnose.
 - **CharacterizationModule** - baseline characteristics and incidence rates.
 
 Remove a module from `moduleSpecsList` at the bottom of
