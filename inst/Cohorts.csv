@@ -1,4 +1,4 @@
 atlas_id,cohort_id,cohort_name,logic_description,generate_stats
-1778211,11,celecoxib,NA,TRUE
-1790989,21,diclofenac,NA,TRUE
-1780946,31,GI Bleed,NA,TRUE
+1662241,1,new users of ACE inhibitors for hypertension,NA,TRUE
+1662246,2,new users of ARBs for hypertension,NA,TRUE
+1662245,3,first observed cough,null,TRUE

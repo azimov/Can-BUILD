@@ -90,16 +90,18 @@ After downloading assets, confirm that the cohort IDs and names match the study 
 
 ## Review Starting Assets
 
-This template provides starting assets that should be reviewed by the study team before the analysis specification is created.
+This study has no starting assets to review: it uses only the cohorts listed in
+`inst/Cohorts.csv`, all of which are downloaded from ATLAS.
 
-Review and edit:
+The repository does include placeholder cohorts from the OHDSI demo ATLAS
+(targets 1 ACE inhibitors and 2 ARBs, outcome 3 first observed cough). They exist so the
+pipeline can be built and tested before the real cohorts are defined. Replace
+them before distributing the study - see the
+[Placeholders](../README.md#placeholders) section of the README.
 
-- `inst/negativeControlOutcomes.csv`
-- `inst/covariateConceptsToExclude.csv`
-
-These files are intended as starting points. The study team should decide whether the provided negative control outcomes and excluded covariate concepts are appropriate for the research question, target-comparator pairs, and analytic design.
-
-The provided negative controls and concepts to exclude were curated by OHDSI community members and are included as vetted starting assets. They were not chosen indiscriminately, but they still need study-specific review before being used in a finalized analysis specification.
+If the study later adds estimation analyses (CohortMethod, SelfControlledCaseSeries),
+the template's negative control outcomes and excluded covariate concepts would
+need to be added back and reviewed at that point.
 
 ## Create The Strategus Analysis Specification
 
@@ -107,15 +109,21 @@ The main design script is `scriptsForStudyDesigner/CreateStrategusAnalysisSpecif
 
 This script loads the cohort assets and starting assets from `inst/`, defines the study design, creates module specifications for the selected HADES modules, and saves the Strategus analysis specification.
 
-The main user-editable areas include:
+The main user-editable areas are:
 
-- `tcis`: target, comparator, indication, and subgroup definitions.
-- `outcomes`: outcome cohort IDs and clean windows.
-- `timeAtRisks`: time-at-risk settings for characterization, incidence, and cohort method analyses.
-- `sccsTimeAtRisks`: time-at-risk settings for SelfControlledCaseSeries.
-- `plpTimeAtRisks`: prediction time-at-risk settings.
-- `studyStartDate` and `studyEndDate`: optional calendar time restrictions.
-- Module-specific sizing or modeling settings above the "DO NOT MODIFY" line.
+- `targetIds`: the target cohorts.
+- `outcomes`: outcome cohort IDs and clean windows. Both cohorts are placeholders
+  until the real outcome cohorts are defined in ATLAS.
+- `riskWindowStart`, `startAnchor`, `riskWindowEnd`, `endAnchor`: the time-at-risk
+  window used for the incidence rates.
+- `studyPopulationSettings`: prior observation, age, gender and study date
+  restrictions (none in this study).
+- `ageBreaks`, `byAge`, `byGender`: how the incidence rates are stratified.
+
+The Characterization v4 settings objects (`createStudyPopulationSettings`,
+`createTargetBaselineSettings`, `createCohortIncidenceSettings`,
+`createCharacterizationSettings`) replace the flat module arguments used by
+earlier versions of this template.
 
 The script saves the analysis specification to:
 
@@ -127,15 +135,16 @@ by using the `studySpecificationFileName` value in `config.yml`.
 
 ## Choose Strategus Modules
 
-The template includes settings for several Strategus HADES modules:
+This study uses three Strategus HADES modules:
 
-- CohortGenerator
-- CohortDiagnostics
-- Characterization
-- CohortIncidence
-- CohortMethod
-- SelfControlledCaseSeries
-- PatientLevelPrediction
+- CohortGenerator - builds all the cohorts
+- CohortDiagnostics - diagnostics for the outcome cohorts
+- Characterization - baseline characteristics and incidence rates
+
+There is no estimation (CohortMethod, SelfControlledCaseSeries) and no prediction
+(PatientLevelPrediction) in this study. The separate CohortIncidence module is
+not needed either: Characterization v4 produces the incidence rates through its
+`cohortIncidenceSettings`.
 
 If a study does not use all modules, remove unused module specifications from the `moduleSpecsList` near the bottom of `CreateStrategusAnalysisSpecifications.R`. You may also remove related setup code when it is clearly not needed, but keep changes focused and deliberate.
 

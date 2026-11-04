@@ -1,3 +1,27 @@
+Can-BUILD 1.0.0
+===============
+- Re-scope the study to incidence rates by calendar year, computed with the HADES
+  Characterization package (v4 settings API).
+- `CreateStrategusAnalysisSpecifications.R` now builds Characterization v4 settings
+  objects (`createStudyPopulationSettings`, `createTargetBaselineSettings`,
+  `createCohortIncidenceSettings`, `createCharacterizationSettings`) and passes them
+  to `CharacterizationModule$createModuleSpecifications(characterizationSettings = ...)`.
+  This requires Strategus >= 1.6.0 and Characterization >= 4.0.0.
+- Remove CohortMethod and SelfControlledCaseSeries (and the unused CohortIncidence
+  module, whose output Characterization now provides) together with their settings
+  (`tcis`, `sccsTimeAtRisks`, `plpTimeAtRisks`, sizing parameters) and the negative
+  control and covariate-exclusion assets that only served estimation.
+- Remove the target-comparator-indication-subgroup machinery and all cohort
+  subsetting, including the "above/below the line" split of the script.
+- Replace the cohorts with placeholder cohorts downloaded from the OHDSI demo
+  ATLAS (targets 1 new users of ACE inhibitors and 2 new users of ARBs, outcome
+  3 first observed cough). Every cohort in the study now comes from ATLAS
+  through `DownloadAssets.R`; there is no custom cohort SQL.
+- Report incidence rates by calendar year (`byYear = TRUE`) since the target
+  cohorts are not themselves calendar-year cohorts yet.
+- Point `ExecuteAnalyses.R` at the local OHDSI Lab and document the `cdm_vocab`
+  view layer the lab needs.
+
 StrategusStudyRepoTemplate 2.0.3
 ===============
 - Fix check for duplicated cohort IDs in `scriptsForStudyDesigner/CreateStrategusAnalysisSpecifications.R`

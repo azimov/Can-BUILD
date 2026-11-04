@@ -28,7 +28,7 @@ Install and configure:
 - R, preferably the version recorded in `renv.lock`.
 - RStudio or another R development environment.
 - RTools on Windows when package compilation is required.
-- Java, because several OHDSI packages use Java-based database and SQL tooling.
+- Java 17 or newer, because several OHDSI packages use Java-based database and SQL tooling. DatabaseConnector 8.0.0 (the version pinned in `renv.lock`) does not work on Java 8: reading an `int8` column fails with `NoSuchMethodError: java.nio.ByteBuffer.clear()`. Point `JAVA_HOME` at the JDK before starting R.
 - Git or another way to download the study repository.
 
 The HADES setup guide provides the detailed installation steps for these components. It also describes how to increase the Java heap size by setting `_JAVA_OPTIONS`, which is commonly needed for OHDSI package workflows. This repository also sets Java-related options in `ExecuteAnalyses.R`, but users should still follow the HADES guidance when configuring their local environment.
@@ -65,6 +65,14 @@ Study Coordinators need access to:
 - A database account with permission to insert results when uploading site outputs.
 
 Database connections are created with `DatabaseConnector::createConnectionDetails()`. Each site should test its connection before running the full study.
+
+`DatabaseConnector` also needs the JDBC driver for your database. Either put the driver in a folder and point `DATABASECONNECTOR_JAR_FOLDER` at it, or download it once:
+
+```r
+DatabaseConnector::downloadJdbcDrivers("postgresql")
+```
+
+`ExecuteAnalyses.R` reads `DATABASECONNECTOR_JAR_FOLDER` and passes it as `pathToDriver`.
 
 ## Site Execution Permissions
 
@@ -119,7 +127,7 @@ When SFTP is used, Site Participants enter the upload settings provided by the S
 - R, RStudio, RTools, Java, and restored `renv` environment.
 - Access to the ATLAS/WebAPI instance used to retrieve cohort definitions.
 - Ability to run `scriptsForStudyDesigner/DownloadAssets.R`.
-- Ability to review and edit starting assets such as negative controls and covariates to exclude.
+- Ability to review and edit the cohort assets in `inst/` (cohort IDs, SQL, and the placeholder outcome cohorts).
 - Ability to run `scriptsForStudyDesigner/CreateStrategusAnalysisSpecifications.R`.
 - Access to a test OMOP CDM or synthetic database for validating the study package.
 

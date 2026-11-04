@@ -1,282 +1,207 @@
 ################################################################################
-# INSTRUCTIONS: Make sure you have downloaded your cohorts and concept sets 
-# using DownloadAssets.R and that those are stored in the "inst" folder of the
-# of the project. 
-# 
-# More information about Strategus HADES modules can be found at:
-# https://ohdsi.github.io/Strategus/reference/index.html#omop-cdm-hades-modules.
-# This help page also contains links to the corresponding HADES package that
-# further details.
-# ##############################################################################
+# Create the Strategus analysis specification
+#
+# WHAT THIS STUDY DOES
+# --------------------
+# The primary output is INCIDENCE RATES: how often each outcome of interest
+# occurs per 100 person-years, by calendar year.
+#
+#   Targets  : PLACEHOLDER cohorts from the OHDSI demo ATLAS (cohort IDs 1 and
+#              2), standing in for the real target cohorts until they are
+#              defined. The real targets will be one cohort per calendar year:
+#              everyone who has a visit on 1 January of that year.
+#   Outcomes : PLACEHOLDER cohort from the OHDSI demo ATLAS (cohort ID 3).
+#   Modules  : CohortGenerator -> CohortDiagnostics -> Characterization (v4)
+#
+# Every cohort in this study is an ATLAS cohort: it is downloaded by
+# scriptsForStudyDesigner/DownloadAssets.R into inst/ and built by the
+# CohortGenerator module. There is no custom SQL in the study.
+#
+# REQUIREMENTS
+# ------------
+# R 4.6.2 and the package versions pinned in renv.lock. In particular this
+# script uses the Characterization v4 settings API, which requires
+# Strategus >= 1.6.0 (the CharacterizationModule now lives in Strategus) and
+# Characterization >= 4.0.0.
+#
+# You only need to run this script once, after changing the study design:
+# it writes inst/analysisSpecifications.json, which is what ExecuteAnalyses.R
+# reads.
+################################################################################
 library(Strategus)
 library(tibble)
 config <- config::get()
 
-negativeControlOutcomeCohortSet <- CohortGenerator::readCsv(
-  file = file.path(config$projectRootFolder, "inst", "negativeControlOutcomes.csv")
-)
-
-covariateConceptsToExclude <- CohortGenerator::readCsv(
-  file = file.path(config$projectRootFolder, "inst", "covariateConceptsToExclude.csv")
-) |>
-  dplyr::pull("conceptId")
-
+# ==============================================================================
+# Cohort assets
+# ==============================================================================
+# inst/Cohorts.csv lists the cohorts and where they came from in ATLAS. The
+# files it points at (inst/cohorts/*.json, inst/sql/sql_server/*.sql) are
+# written by scriptsForStudyDesigner/DownloadAssets.R.
 cohortDefinitionSet <- CohortGenerator::getCohortDefinitionSet(
   settingsFileName = file.path(config$projectRootFolder, "inst", "Cohorts.csv"),
   jsonFolder = file.path(config$projectRootFolder, "inst", "cohorts"),
   sqlFolder = file.path(config$projectRootFolder, "inst", "sql", "sql_server")
 )
 
-tcis <- list(
-  #standard analyses that would be performed during routine signal detection
-  list(
-    targetId = 11, # Celecoxib
-    comparatorId = 21, # diclofenac
-    indicationId = NULL, # When desired, you can use this to subset the target & comparator to an indication cohort that overlaps the target/comparator start date. Can be NULL.
-    genderConceptIds = c(8507, 8532), # use valid genders (remove unknown)
-    minAge = NULL, # All ages In years. Can be NULL
-    maxAge = NULL, # All ages In years. Can be NULL
-    excludedCovariateConceptIds = c(
-      1118084, # celecoxib
-      1124300  # diclofenac
-    ) 
-  )
-)
+# ==============================================================================
+# Targets
+# ==============================================================================
+# PLACEHOLDER TARGETS: two cohorts from the OHDSI demo ATLAS
+#   https://atlas-demo.ohdsi.org/atlas/
+#   cohort 1 = new users of ACE inhibitors for hypertension
+#   cohort 2 = new users of ARBs for hypertension
+#
+# They exist so the pipeline can be built, tested and demonstrated end to end
+# before the real target cohorts are defined. To replace them: define the real
+# cohorts in ATLAS, list them in the cohortsToDownload table in
+# scriptsForStudyDesigner/DownloadAssets.R, run that script, and point
+# targetIds at the new cohort IDs.
+targetIds <- c(1, 2)
 
+missingTargets <- setdiff(targetIds, cohortDefinitionSet$cohortId)
+if (length(missingTargets) > 0) {
+  stop(
+    "These target cohort IDs are not in inst/Cohorts.csv: ",
+    paste(missingTargets, collapse = ", ")
+  )
+}
+
+# ==============================================================================
+# Outcomes
+# ==============================================================================
+# PLACEHOLDER OUTCOME: cohort 3 = first observed cough, also from the OHDSI demo
+# ATLAS. Replace it the same way as the targets.
+#
+# cleanWindow is the number of days that must pass between two outcome events
+# before the second one counts as a new event.
 outcomes <- tibble::tribble(
   ~cohortId, ~cleanWindow,
-  31,    365,          # GI Bleed
+  3,         365           # PLACEHOLDER outcome - first observed cough
 )
 
-# Time-at-risks (TARs) for the outcomes of interest in your study
-timeAtRisks <- tibble::tribble(
-  ~label,         ~riskWindowStart, ~startAnchor,   ~riskWindowEnd, ~endAnchor,
-  "On treatment", 1,                "cohort start", 0,              "cohort end"
-)
-# Try to avoid intent-to-treat TARs for SCCS, or then at least disable calendar time spline:
-sccsTimeAtRisks <- tibble::tribble(
-  ~label,         ~riskWindowStart, ~startAnchor,   ~riskWindowEnd, ~endAnchor,
-  "On treatment", 1,                "cohort start", 0,              "cohort end"
-)
-# Try to use fixed-time TARs for patient-level prediction:
-plpTimeAtRisks <- tibble::tribble(
-  ~riskWindowStart, ~startAnchor,   ~riskWindowEnd, ~endAnchor,
-  1,                "cohort start", 365,            "cohort start"
-)
-
-# If you are not restricting your study to a specific time window, 
-# please make these strings empty
-studyStartDate <- "" # Specify in "YYYYMMDD" format
-studyEndDate <- ""   # Specify in "YYYYMMDD" format
-
-# Probably don't change below this line ----------------------------------------
-## Consider these settings for estimation  -------------------------------------
-useCleanWindowForPriorOutcomeLookback <- FALSE # If FALSE, lookback window is all time prior, i.e., including only first events
-psMatchMaxRatio <- 1 # If bigger than 1, the outcome model will be conditioned on the matched set
-cmMaxCohortSizeForFitting <- 250000 # Downsampled example study to 10000
-cmMaxCovBalanceCohortSize <- cmMaxCohortSizeForFitting # Used for covariate balance
-sccsMaxCasesPerOutcome <- 100000 # Mostly used to limit computation for negative controls. 
-
-## Consider these settings for patient-level prediction  -----------------------
-plpMaxSampleSize <- 1000000 # Downsampled example study to 20000
-
-########################################################
-# Below the line - DO NOT MODIFY -----------------------
-########################################################
-
-# Don't change below this line (unless you know what you're doing) -------------
-
-# Get unique Tcis combinations -------------------------------------------------
-dfUniqueTcis <- data.frame()
-for (i in seq_along(tcis)) {
-  dfUniqueTcis <- rbind(dfUniqueTcis, data.frame(cohortId = tcis[[i]]$targetId,
-                                                 indicationId = paste(tcis[[i]]$indicationId, collapse = ","),
-                                                 genderConceptIds = paste(tcis[[i]]$genderConceptIds, collapse = ","),
-                                                 minAge = paste(tcis[[i]]$minAge, collapse = ","),
-                                                 maxAge = paste(tcis[[i]]$maxAge, collapse = ",")
-  ))
-  if (!is.null(tcis[[i]]$comparatorId)) {
-    dfUniqueTcis <- rbind(dfUniqueTcis, data.frame(cohortId = tcis[[i]]$comparatorId,
-                                                   indicationId = paste(tcis[[i]]$indicationId, collapse = ","),
-                                                   genderConceptIds = paste(tcis[[i]]$genderConceptIds, collapse = ","),
-                                                   minAge = paste(tcis[[i]]$minAge, collapse = ","),
-                                                   maxAge = paste(tcis[[i]]$maxAge, collapse = ",")
-    ))
-  }
-}
-
-dfUniqueTcis <- unique(dfUniqueTcis)
-dfUniqueTcis$subsetDefinitionId <- 0 # Add a column for use when performing subsets
-
-# Create subsets ------------------
-dfUniqueSubsetCriteria <- unique(dfUniqueTcis[,-1])
-
-for (i in seq_len(nrow(dfUniqueSubsetCriteria))) {
-  uniqueSubsetCriteria <- dfUniqueSubsetCriteria[i,]
-  dfCurrentTcis <- dfUniqueTcis[dfUniqueTcis$indicationId == uniqueSubsetCriteria$indicationId &
-                                  dfUniqueTcis$genderConceptIds == uniqueSubsetCriteria$genderConceptIds &
-                                  dfUniqueTcis$minAge == uniqueSubsetCriteria$minAge & 
-                                  dfUniqueTcis$maxAge == uniqueSubsetCriteria$maxAge,]
-  targetCohortIdsForSubsetCriteria <- as.integer(dfCurrentTcis[, "cohortId"])
-  dfUniqueTcis[dfUniqueTcis$indicationId == dfCurrentTcis$indicationId &
-                 dfUniqueTcis$genderConceptIds == dfCurrentTcis$genderConceptIds &
-                 dfUniqueTcis$minAge == dfCurrentTcis$minAge & 
-                 dfUniqueTcis$maxAge == dfCurrentTcis$maxAge,]$subsetDefinitionId <- i
-  
-  subsetOperators <- list()
-  
-  # Always first restrict for CM/PLP - also if running annual IRs need to change limitTo = 'firstEver' to 'all'
-  subsetOperators[[length(subsetOperators) + 1]] <- CohortGenerator::createLimitSubsetOperator(
-    priorTime = 365,
-    followUpTime = 1,
-    limitTo = "firstEver"
+missingOutcomes <- setdiff(outcomes$cohortId, cohortDefinitionSet$cohortId)
+if (length(missingOutcomes) > 0) {
+  stop(
+    "These outcome cohort IDs are not in inst/Cohorts.csv: ",
+    paste(missingOutcomes, collapse = ", ")
   )
-  
-  # Indication restriction (always first if there is an indication)
-  indicationName <- ""
-  if (uniqueSubsetCriteria$indicationId != "") {
-    subsetOperators[[length(subsetOperators) + 1]] <- CohortGenerator::createCohortSubsetOperator(
-      cohortIds = uniqueSubsetCriteria$indicationId,
-      negate = FALSE,
-      cohortCombinationOperator = "all",
-      windows = list(
-        CohortGenerator::createSubsetCohortWindow(
-          startDay = -99999, 
-          endDay = 0, 
-          targetAnchor = "cohortStart",
-          subsetAnchor = "cohortStart"
-        ),
-        CohortGenerator::createSubsetCohortWindow(
-          startDay = 0, 
-          endDay = 99999, 
-          targetAnchor = "cohortStart",
-          subsetAnchor = "cohortEnd"
-        )
-      )
-    )
-    # saving name for the cohort subset name
-    indicationName <- cohortDefinitionSet$cohortName[cohortDefinitionSet$cohortId == uniqueSubsetCriteria$indicationId]
-  }
-  
-  # Demo settings
-  demoName <- ""
-  if (uniqueSubsetCriteria$genderConceptIds != "" ||
-      uniqueSubsetCriteria$minAge != "" ||
-      uniqueSubsetCriteria$maxAge != "") {
-    subsetOperators[[length(subsetOperators) + 1]] <- CohortGenerator::createDemographicSubsetOperator(
-      ageMin = if(uniqueSubsetCriteria$minAge == "") 0 else as.integer(uniqueSubsetCriteria$minAge),
-      ageMax = if(uniqueSubsetCriteria$maxAge == "") 99999 else as.integer(uniqueSubsetCriteria$maxAge),
-      gender = if(uniqueSubsetCriteria$genderConceptIds == "") NULL else as.integer(strsplit(uniqueSubsetCriteria$genderConceptIds, ",")[[1]])
-    )
-    
-    if(uniqueSubsetCriteria$genderConceptIds != ""){
-      # could map to name but for now doing code to make it generalizable
-      demoName <- paste0(" gender ",uniqueSubsetCriteria$genderConceptIds)
-    }
-    if(uniqueSubsetCriteria$minAge != "" & uniqueSubsetCriteria$maxAge == ""){
-      # check the >= is true
-      demoName <- paste0(demoName, ' age >= ', uniqueSubsetCriteria$minAge)
-    }
-    if(uniqueSubsetCriteria$minAge == "" & uniqueSubsetCriteria$maxAge != ""){
-      # check the >= is true
-      demoName <- paste0(demoName, ' age <= ', uniqueSubsetCriteria$maxAge)
-    }
-    if(uniqueSubsetCriteria$minAge != "" & uniqueSubsetCriteria$maxAge != ""){
-      # check the <= is true
-      demoName <- paste0(demoName, ' ', uniqueSubsetCriteria$minAge, ' <= age <= ', uniqueSubsetCriteria$maxAge)
-    }
-    
-  }
-  
-  # Time settings
-  timeName <- ""
-  if (studyStartDate != "" || studyEndDate != "") {
-    subsetOperators[[length(subsetOperators) + 1]] <- CohortGenerator::createLimitSubsetOperator(
-      calendarStartDate = if (studyStartDate == "") NULL else as.Date(studyStartDate, "%Y%m%d"),
-      calendarEndDate = if (studyEndDate == "") NULL else as.Date(studyEndDate, "%Y%m%d")
-    )
-    
-    if(studyStartDate != ""){
-      timeName <- paste0(" from ", studyStartDate)
-    }
-    if(studyEndDate != ""){
-      timeName <- paste0(timeName, " until ", studyEndDate)
-    }
-    
-  }
-  # add the indication/demo/year subset for the targets with this subset
-  subsetDef <- CohortGenerator::createCohortSubsetDefinition(
-    name = paste0("first time ",ifelse(indicationName == '', '', 'in '), indicationName, demoName, timeName),
-    subsetCohortNameTemplate = "@baseCohortName - @subsetDefinitionName",
-    definitionId = i,
-    subsetOperators = subsetOperators
+}
+
+# ==============================================================================
+# Time at risk
+# ==============================================================================
+# For these cohorts the cohort start date is the index date (the first drug
+# exposure) and the cohort end date is the end of the exposure. So a time at
+# risk of "day 1 to cohort end" is on-treatment follow-up, which is the
+# denominator of the incidence rates.
+riskWindowStart <- 1
+startAnchor <- "cohort start"
+riskWindowEnd <- 0
+endAnchor <- "cohort end"
+
+# ==============================================================================
+# Characterization settings
+# ==============================================================================
+# Characterization v4 replaces the old collection of flat module arguments with
+# a small set of settings objects. A "study population" says which target
+# cohorts to include and how to restrict them; each analysis (baseline, risk
+# factors, incidence, ...) then takes that study population plus its own
+# options.
+studyPopulationSettings <- Characterization::createStudyPopulationSettings(
+  targetIds = targetIds,
+  limitToFirstInNDays = 0, # keep every cohort episode
+  minPriorObservation = 0, # no prior observation requirement
+  minAge = NULL, # no age restriction
+  maxAge = NULL, # no age restriction
+  studyStartDate = NULL, # no calendar restriction
+  studyEndDate = NULL,
+  genderConceptIds = NULL # all genders
+)
+
+# Baseline covariates. This is the Characterization default set with one
+# change: the day-level "time in cohort" feature is off, because it builds one
+# row per cohort day per person and is the most expensive covariate by far.
+baselineCovariateSettings <- FeatureExtraction::createCovariateSettings(
+  useDemographicsGender = TRUE,
+  useDemographicsAge = TRUE,
+  useDemographicsAgeGroup = TRUE,
+  useDemographicsRace = TRUE,
+  useDemographicsEthnicity = TRUE,
+  useDemographicsIndexYear = TRUE,
+  useDemographicsIndexMonth = TRUE,
+  useDemographicsPriorObservationTime = TRUE,
+  useDemographicsPostObservationTime = TRUE,
+  useConditionGroupEraLongTerm = TRUE,
+  useConditionGroupEraShortTerm = TRUE,
+  useDrugGroupEraLongTerm = TRUE,
+  useDrugGroupEraShortTerm = TRUE,
+  useDrugGroupEraOverlapping = TRUE,
+  useProcedureOccurrenceLongTerm = TRUE,
+  useProcedureOccurrenceShortTerm = TRUE,
+  useMeasurementLongTerm = TRUE,
+  useMeasurementShortTerm = TRUE,
+  useObservationLongTerm = TRUE,
+  useObservationShortTerm = TRUE,
+  useDeviceExposureLongTerm = TRUE,
+  useDeviceExposureShortTerm = TRUE,
+  useVisitConceptCountLongTerm = TRUE,
+  useVisitConceptCountShortTerm = TRUE,
+  useCharlsonIndex = TRUE,
+  endDays = 0,
+  longTermStartDays = -365,
+  shortTermStartDays = -30
+)
+
+characterizationSettings <- Characterization::createCharacterizationSettings(
+  # Who is in the denominator: age, sex, conditions, drugs, ...
+  targetBaselineSettings = Characterization::createTargetBaselineSettings(
+    studyPopulationSettings = studyPopulationSettings,
+    covariateSettings = baselineCovariateSettings
+  ),
+  # THE PRIMARY OUTPUT: events and person time per outcome, by calendar year
+  # and stratified by age and gender, as a rate per 100 person-years.
+  cohortIncidenceSettings = Characterization::createCohortIncidenceSettings(
+    studyPopulationSettings = studyPopulationSettings,
+    outcomeIds = outcomes$cohortId,
+    outcomeWashoutDays = outcomes$cleanWindow,
+    riskWindowStart = riskWindowStart,
+    startAnchor = startAnchor,
+    riskWindowEnd = riskWindowEnd,
+    endAnchor = endAnchor,
+    byYear = TRUE, # report rates per calendar year
+    byGender = TRUE,
+    byAge = TRUE,
+    ageBreaks = seq(0, 110, by = 10)
   )
-  cohortDefinitionSet <- cohortDefinitionSet |>
-    CohortGenerator::addCohortSubsetDefinition(
-      cohortSubsetDefintion = subsetDef,
-      targetCohortIds = targetCohortIdsForSubsetCriteria
-    ) 
-  
-  # add the indication cohort without the indication subset
-  if (uniqueSubsetCriteria$indicationId != "") {
-    # Also create restricted version of indication cohort:
-    subsetDef <- CohortGenerator::createCohortSubsetDefinition(
-      name = paste0("first time ", demoName, timeName),
-      subsetCohortNameTemplate = "@baseCohortName - @subsetDefinitionName",
-      definitionId = i + 100,
-      subsetOperators = subsetOperators[-2] # indic removed
-    )
-    cohortDefinitionSet <- cohortDefinitionSet |>
-      CohortGenerator::addCohortSubsetDefinition(
-        cohortSubsetDefintion = subsetDef,
-        targetCohortIds = as.integer(uniqueSubsetCriteria$indicationId)
-      )
-  }  
-}
+)
 
-# Check to make sure there are no duplicated cohort IDs between 
-# the cohortDefintionSet and negative control outcome cohorts.
-if (!is.null(negativeControlOutcomeCohortSet)) {
-  if (length(intersect(cohortDefinitionSet$cohortId, negativeControlOutcomeCohortSet$cohortId)) > 0) {
-    dupedCohortIds <- intersect(cohortDefinitionSet$cohortId, negativeControlOutcomeCohortSet$cohortId)
-    dupedCohorts <- cohortDefinitionSet |>
-      dplyr::filter(cohortId %in% dupedCohortIds) |>
-      dplyr::select(cohortId, cohortName) |>
-      dplyr::mutate(source = "cohortDefinitionSet")
-    dupedNcs <- negativeControlOutcomeCohortSet |>
-      dplyr::filter(cohortId %in% dupedCohortIds) |>
-      dplyr::select(cohortId, cohortName) |>
-      dplyr::mutate(source = "negativeControlOutcomeCohortSet")
-    allDupedCohorts <- dupedCohorts |>
-      dplyr::bind_rows(dupedNcs)
-    cli::cli_alert_danger("Duplicate cohort IDs found in the cohortDefinitionSet and the negativeControlOutcomeCohortSet!")
-    print.data.frame(allDupedCohorts)
-    stop("*** Please resolve this identifier conflict and try again ***")
-  }
-}
+# ==============================================================================
+# Strategus modules
+# ==============================================================================
+# Only the descriptive modules are used. There is no PLE/PLP and no
+# CohortMethod / SelfControlledCaseSeries in this study, so those module
+# specifications are simply not created.
 
-# Strategus module settings ----------------------------------------------------
-## CohortGeneratorModule settings ----------------------------------------------
+## CohortGenerator: build the outcome cohorts -------------------------------
+# Only the outcome cohorts are in the shared resource: Strategus rebuilds every
+# cohort in it from its Circe JSON when it runs, and the calendar-year cohorts
+# have no JSON (they are built by BuildCalendarYearCohorts.R, called from
+# ExecuteAnalyses.R, before the run).
 cgModuleSettingsCreator <- CohortGeneratorModule$new()
-cohortDefinitionShared <- cgModuleSettingsCreator$createCohortSharedResourceSpecifications(cohortDefinitionSet)
-sharedResourcesList <- list()
-sharedResourcesList[[1]] <- cohortDefinitionShared 
-if (!is.null(negativeControlOutcomeCohortSet)) {
-  negativeControlsShared <- cgModuleSettingsCreator$createNegativeControlOutcomeCohortSharedResourceSpecifications(
-    negativeControlOutcomeCohortSet = negativeControlOutcomeCohortSet,
-    occurrenceType = "first",
-    detectOnDescendants = TRUE
-  )
-  sharedResourcesList[[length(sharedResourcesList)+1]] <- negativeControlsShared
-}
+cohortDefinitionShared <- cgModuleSettingsCreator$createCohortSharedResourceSpecifications(
+  cohortDefinitionSet
+)
 cohortGeneratorModuleSpecifications <- cgModuleSettingsCreator$createModuleSpecifications(
   generateStats = TRUE
 )
 
-## CohortDiagnosticsModule settings --------------------------------------------
+## CohortDiagnostics: check the outcome cohorts -----------------------------
+# Run on the outcome cohorts only. The calendar-year cohorts are SQL-defined
+# and have no concept-level content to diagnose.
 cdModuleSettingsCreator <- CohortDiagnosticsModule$new()
 cohortDiagnosticsModuleSpecifications <- cdModuleSettingsCreator$createModuleSpecifications(
-  cohortIds = cohortDefinitionSet$cohortId,
+  cohortIds = outcomes$cohortId,
   runInclusionStatistics = TRUE,
   runIncludedSourceConcepts = TRUE,
   runOrphanConcepts = TRUE,
@@ -285,114 +210,34 @@ cohortDiagnosticsModuleSpecifications <- cdModuleSettingsCreator$createModuleSpe
   runBreakdownIndexEvents = TRUE,
   runIncidenceRate = TRUE,
   runCohortRelationship = TRUE,
-  runTemporalCohortCharacterization = TRUE,
+  # Temporal cohort characterization builds a large covariate table and is the
+  # heaviest part of the module; it is off so the diagnostics fit alongside the
+  # other containers on a small machine.
+  runTemporalCohortCharacterization = FALSE,
   minCharacterizationMean = 0.01
 )
 
-## CharacterizationModule settings ---------------------------------------------
+## Characterization: baseline characteristics and incidence rates -----------
 cModuleSettingsCreator <- CharacterizationModule$new()
-allCohortIdsExceptOutcomes <- cohortDefinitionSet |>
-  dplyr::filter(!cohortId %in% outcomes$cohortId) |>
-  dplyr::pull(cohortId)
-
 characterizationModuleSpecifications <- cModuleSettingsCreator$createModuleSpecifications(
-  targetIds = allCohortIdsExceptOutcomes,
-  outcomeIds = outcomes$cohortId,
-  outcomeWashoutDays = outcomes$cleanWindow,
-  dechallengeStopInterval = 30,
-  dechallengeEvaluationWindow = 30,
-  riskWindowStart = timeAtRisks$riskWindowStart,
-  startAnchor = timeAtRisks$startAnchor,
-  riskWindowEnd = timeAtRisks$riskWindowEnd,
-  endAnchor = timeAtRisks$endAnchor,
+  characterizationSettings = characterizationSettings,
   minCharacterizationMean = 0.01,
-  casePreTargetDuration = 365,
-  casePostOutcomeDuration = 365,
-  minPriorObservation = 365
+  minCovariateCount = 5,
+  mode = "CohortIncidence",
+  outputTable = "characterization_cohorts"
 )
 
-## CohortIncidenceModule settings --------------------------------------------------------
-ciModuleSettingsCreator <- CohortIncidenceModule$new()
-exposureIndicationIds <- cohortDefinitionSet |>
-  dplyr::filter(!cohortId %in% outcomes$cohortId & isSubset) |>
-  dplyr::pull(cohortId)
-targetList <- lapply(
-  exposureIndicationIds,
-  function(cohortId) {
-    CohortIncidence::createCohortRef(
-      id = cohortId, 
-      name = cohortDefinitionSet$cohortName[cohortDefinitionSet$cohortId == cohortId]
-    )
-  }
-)
-outcomeList <- lapply(
-  seq_len(nrow(outcomes)),
-  function(i) {
-    CohortIncidence::createOutcomeDef(
-      id = i, 
-      name = cohortDefinitionSet$cohortName[cohortDefinitionSet$cohortId == outcomes$cohortId[i]], 
-      cohortId = outcomes$cohortId[i], 
-      cleanWindow = outcomes$cleanWindow[i]
-    )
-  }
-)
-
-tars <- list()
-for (i in seq_len(nrow(timeAtRisks))) {
-  tars[[i]] <- CohortIncidence::createTimeAtRiskDef(
-    id = i, 
-    startWith = gsub("cohort ", "", timeAtRisks$startAnchor[i]), 
-    endWith = gsub("cohort ", "", timeAtRisks$endAnchor[i]), 
-    startOffset = timeAtRisks$riskWindowStart[i],
-    endOffset = timeAtRisks$riskWindowEnd[i]
-  )
-}
-analysis1 <- CohortIncidence::createIncidenceAnalysis(
-  targets = exposureIndicationIds,
-  outcomes = seq_len(nrow(outcomes)),
-  tars = seq_along(tars)
-)
-
-# NOTE: Passing an empty string to CohortIncidence::createDateRange
-# will not work since it assumes a non-missing value is formatted
-# as a date string so checking the parameters here so we only pass
-# the non-empty values specified by the user
-createDateRangeArgs <- list()
-studyStartDateWithHyphens <- gsub("(\\d{4})(\\d{2})(\\d{2})", "\\1-\\2-\\3", studyStartDate)
-studyEndDateWithHyphens <- gsub("(\\d{4})(\\d{2})(\\d{2})", "\\1-\\2-\\3", studyEndDate)
-if (studyStartDateWithHyphens != "") {
-  createDateRangeArgs["startDate"] <- studyStartDateWithHyphens
-}
-if (studyEndDateWithHyphens != "") {
-  createDateRangeArgs["endDate"] <- studyEndDateWithHyphens
-}
-irStudyWindow <- do.call(CohortIncidence::createDateRange, createDateRangeArgs)
-
-irDesign <- CohortIncidence::createIncidenceDesign(
-  targetDefs = targetList,
-  outcomeDefs = outcomeList,
-  tars = tars,
-  analysisList = list(analysis1),
-  studyWindow = irStudyWindow,
-  strataSettings = CohortIncidence::createStrataSettings(
-    byYear = TRUE,
-    byGender = TRUE,
-    byAge = TRUE,
-    ageBreaks = seq(0, 110, by = 10)
-  )
-)
-cohortIncidenceModuleSpecifications <- ciModuleSettingsCreator$createModuleSpecifications(
-  irDesign = irDesign$toList()
-)
-
-# Create the analysis specifications ------------------------------------------
-# To disable specific modules, just remove them here:
+# ==============================================================================
+# Assemble the analysis specification
+# ==============================================================================
+# To disable a module, remove it from this list.
 moduleSpecsList <- list(
   cohortGeneratorModuleSpecifications,
   cohortDiagnosticsModuleSpecifications,
-  characterizationModuleSpecifications,
-  cohortIncidenceModuleSpecifications
+  characterizationModuleSpecifications
 )
+
+sharedResourcesList <- list(cohortDefinitionShared)
 
 analysisSpecifications <- Strategus::createEmptyAnalysisSpecifications()
 for (sharedResource in sharedResourcesList) {
@@ -402,7 +247,15 @@ for (moduleSpec in moduleSpecsList) {
   analysisSpecifications <- Strategus::addModuleSpecifications(analysisSpecifications, moduleSpec)
 }
 
-ParallelLogger::saveSettingsToJson(
-  analysisSpecifications, 
-  file.path(config$projectRootFolder, "inst", config$studySpecificationFileName)
+specificationFileName <- file.path(
+  config$projectRootFolder,
+  "inst",
+  config$studySpecificationFileName
+)
+ParallelLogger::saveSettingsToJson(analysisSpecifications, specificationFileName)
+
+message(
+  "Analysis specification written to ", specificationFileName, "\n",
+  "  targets : ", paste(targetIds, collapse = ", "), " (PLACEHOLDER cohorts)\n",
+  "  outcomes: ", paste(outcomes$cohortId, collapse = ", "), " (PLACEHOLDER cohort)"
 )

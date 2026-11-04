@@ -1,6 +1,6 @@
 default:
-  studyName: "strategus_template"
-  resultsDatabaseSchema: "strategus_template"
+  studyName: "can_build"
+  resultsDatabaseSchema: "can_build_results"
   webApiUrl: "https://atlas-demo.ohdsi.org/WebAPI"
   projectRootFolder: !expr getwd() # Project root folder will hold the study settings
   resultFolder: !expr file.path(getwd(), "results")  # Folder will hold the study results
@@ -10,13 +10,20 @@ default:
   andromeda: !expr options(andromedaTempFolder = file.path(getwd(), "andromedaTemp"))
   studySpecificationFileName: "analysisSpecifications.json"
   evidenceSynthesisSpecificationFileName: "esAnalysisSpecification.json"
+  # Results database (used by the study coordinator scripts only). Left as
+  # NULL when the OHDSI_RESULTS_DATABASE_* variables are not set, so that the
+  # analysis specification can be built without a results database.
   resultsConnectionDetails: !expr |
-    DatabaseConnector::createConnectionDetails(
-     dbms = "postgresql",
-     server = Sys.getenv("OHDSI_RESULTS_DATABASE_SERVER"),
-     user = Sys.getenv("OHDSI_RESULTS_DATABASE_USER"),
-     password = Sys.getenv("OHDSI_RESULTS_DATABASE_PASSWORD")
-    )
+    if (nzchar(Sys.getenv("OHDSI_RESULTS_DATABASE_SERVER"))) {
+      DatabaseConnector::createConnectionDetails(
+       dbms = "postgresql",
+       server = Sys.getenv("OHDSI_RESULTS_DATABASE_SERVER"),
+       user = Sys.getenv("OHDSI_RESULTS_DATABASE_USER"),
+       password = Sys.getenv("OHDSI_RESULTS_DATABASE_PASSWORD")
+      )
+    } else {
+      NULL
+    }
   # Shiny results viewer settings
   shinyReadOnlyUserName: "shinyproxy"
   # The following settings are for the secure OHDSI SFTP server and are
