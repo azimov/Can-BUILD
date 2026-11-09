@@ -77,7 +77,8 @@ if (length(missingTargets) > 0) {
 # before the second one counts as a new event.
 outcomes <- tibble::tribble(
   ~cohortId, ~cleanWindow,
-  3,         365           # PLACEHOLDER outcome - first observed cough
+  3,         99999, # Note that is is only for incidence rate setting not used in prevelant design
+  4,         99999
 )
 
 missingOutcomes <- setdiff(outcomes$cohortId, cohortDefinitionSet$cohortId)
@@ -95,10 +96,18 @@ if (length(missingOutcomes) > 0) {
 # exposure) and the cohort end date is the end of the exposure. So a time at
 # risk of "day 1 to cohort end" is on-treatment follow-up, which is the
 # denominator of the incidence rates.
+
+# Incidence TAR
 riskWindowStart <- 1
 startAnchor <- "cohort start"
-riskWindowEnd <- 0
-endAnchor <- "cohort end"
+riskWindowEnd <- 365
+endAnchor <- "cohort start"
+
+# Prevelance TAR
+prevelanceRiskWindowStart <- 0
+prevelanceRiskWindowEnd <- 1
+
+
 
 # ==============================================================================
 # Characterization settings
@@ -107,50 +116,76 @@ endAnchor <- "cohort end"
 # a small set of settings objects. A "study population" says which target
 # cohorts to include and how to restrict them; each analysis (baseline, risk
 # factors, incidence, ...) then takes that study population plus its own
-# options.
-studyPopulationSettings <- Characterization::createStudyPopulationSettings(
-  targetIds = targetIds,
-  limitToFirstInNDays = 0, # keep every cohort episode
-  minPriorObservation = 0, # no prior observation requirement
-  minAge = NULL, # no age restriction
-  maxAge = NULL, # no age restriction
-  studyStartDate = NULL, # no calendar restriction
-  studyEndDate = NULL,
-  genderConceptIds = NULL # all genders
+# options
+
+studyPeriods <- list(
+  list(startDate = NULL, endDate = NULL),
+  list(startDate = "20160401", endDate = "20170331"),
+  list(startDate = "20170401", endDate = "20180331"),
+  list(startDate = "20180401", endDate = "20190331"),
+  list(startDate = "20190401", endDate = "20200331"),
+  list(startDate = "20200401", endDate = "20210331"),
+  list(startDate = "20210401", endDate = "20220331"),
+  list(startDate = "20220401", endDate = "20230331"),
+  list(startDate = "20230401", endDate = "20240331"),
+  list(startDate = "20240401", endDate = "20250331"),
+  list(startDate = "20250401", endDate = "20260331"),
+  list(startDate = "20260401", endDate = "20270331")
 )
+
+studyPopulationSettings <- lapply(studyPeriods, function(period) {
+  Characterization::createStudyPopulationSettings(
+    targetIds = c(targetIds, outcomes$cohortId)
+    limitToFirstInNDays = 0, # keep every cohort episode
+    minPriorObservation = 365, # no prior observation requirement
+    minAge = NULL, # no age restriction
+    maxAge = NULL, # no age restriction
+    studyStartDate = period$startDate,
+    studyEndDate = period$startEnd,
+    genderConceptIds = NULL # all genders
+  )
+})
 
 # Baseline covariates. This is the Characterization default set with one
 # change: the day-level "time in cohort" feature is off, because it builds one
 # row per cohort day per person and is the most expensive covariate by far.
-baselineCovariateSettings <- FeatureExtraction::createCovariateSettings(
-  useDemographicsGender = TRUE,
-  useDemographicsAge = TRUE,
-  useDemographicsAgeGroup = TRUE,
-  useDemographicsRace = TRUE,
-  useDemographicsEthnicity = TRUE,
-  useDemographicsIndexYear = TRUE,
-  useDemographicsIndexMonth = TRUE,
-  useDemographicsPriorObservationTime = TRUE,
-  useDemographicsPostObservationTime = TRUE,
-  useConditionGroupEraLongTerm = TRUE,
-  useConditionGroupEraShortTerm = TRUE,
-  useDrugGroupEraLongTerm = TRUE,
-  useDrugGroupEraShortTerm = TRUE,
-  useDrugGroupEraOverlapping = TRUE,
-  useProcedureOccurrenceLongTerm = TRUE,
-  useProcedureOccurrenceShortTerm = TRUE,
-  useMeasurementLongTerm = TRUE,
-  useMeasurementShortTerm = TRUE,
-  useObservationLongTerm = TRUE,
-  useObservationShortTerm = TRUE,
-  useDeviceExposureLongTerm = TRUE,
-  useDeviceExposureShortTerm = TRUE,
-  useVisitConceptCountLongTerm = TRUE,
-  useVisitConceptCountShortTerm = TRUE,
-  useCharlsonIndex = TRUE,
-  endDays = 0,
-  longTermStartDays = -365,
-  shortTermStartDays = -30
+baselineCovariateSettings <- list(
+  FeatureExtraction::createCovariateSettings(
+    useDemographicsGender = TRUE,
+    useDemographicsAge = TRUE,
+    useDemographicsAgeGroup = TRUE,
+    useDemographicsRace = TRUE,
+    useDemographicsEthnicity = TRUE,
+    useDemographicsIndexYear = TRUE,
+    useDemographicsIndexMonth = TRUE,
+    useDemographicsPriorObservationTime = TRUE,
+    useDemographicsPostObservationTime = TRUE,
+    useConditionGroupEraLongTerm = TRUE,
+    useConditionGroupEraShortTerm = TRUE,
+    useDrugGroupEraLongTerm = TRUE,
+    useDrugGroupEraShortTerm = TRUE,
+    useDrugGroupEraOverlapping = TRUE,
+    useProcedureOccurrenceLongTerm = TRUE,
+    useProcedureOccurrenceShortTerm = TRUE,
+    useMeasurementLongTerm = TRUE,
+    useMeasurementShortTerm = TRUE,
+    useObservationLongTerm = TRUE,
+    useObservationShortTerm = TRUE,
+    useDeviceExposureLongTerm = TRUE,
+    useDeviceExposureShortTerm = TRUE,
+    useVisitConceptCountLongTerm = TRUE,
+    useVisitConceptCountShortTerm = TRUE,
+    useCharlsonIndex = TRUE,
+    endDays = 0,
+    longTermStartDays = -365,
+    shortTermStartDays = -30
+  ),
+  FeatureExtraction::createCohortBasedCovariateSettings(
+    analysisId = 2, 
+    covariateCohorts = outcomes, # TODO - join to CDS for cohort name
+    startDay = -99999,
+    endDay = 0
+  )
 )
 
 characterizationSettings <- Characterization::createCharacterizationSettings(
@@ -161,18 +196,34 @@ characterizationSettings <- Characterization::createCharacterizationSettings(
   ),
   # THE PRIMARY OUTPUT: events and person time per outcome, by calendar year
   # and stratified by age and gender, as a rate per 100 person-years.
-  cohortIncidenceSettings = Characterization::createCohortIncidenceSettings(
-    studyPopulationSettings = studyPopulationSettings,
-    outcomeIds = outcomes$cohortId,
-    outcomeWashoutDays = outcomes$cleanWindow,
-    riskWindowStart = riskWindowStart,
-    startAnchor = startAnchor,
-    riskWindowEnd = riskWindowEnd,
-    endAnchor = endAnchor,
-    byYear = TRUE, # report rates per calendar year
-    byGender = TRUE,
-    byAge = TRUE,
-    ageBreaks = seq(0, 110, by = 10)
+  cohortIncidenceSettings = list(
+      Characterization::createCohortIncidenceSettings(
+        studyPopulationSettings = studyPopulationSettings,
+        outcomeIds = outcomes$cohortId,
+        outcomeWashoutDays = outcomes$cleanWindow,
+        riskWindowStart = riskWindowStart,
+        startAnchor = startAnchor,
+        riskWindowEnd = riskWindowEnd,
+        endAnchor = endAnchor,
+        byYear = TRUE, # report rates per calendar year
+        byGender = TRUE,
+        byAge = TRUE,
+        ageBreaks = seq(0, 110, by = 5)
+    ),
+    # Point prevelance design
+    Characterization::createCohortIncidenceSettings(
+        studyPopulationSettings = studyPopulationSettings,
+        outcomeIds = outcomes$cohortId,
+        outcomeWashoutDays = 0,
+        riskWindowStart = prevelanceRiskWindowStart,
+        startAnchor = startAnchor,
+        riskWindowEnd = prevelanceRiskWindowEnd,
+        endAnchor = endAnchor,
+        byYear = TRUE, # report rates per calendar year
+        byGender = TRUE,
+        byAge = TRUE,
+        ageBreaks = seq(0, 110, by = 5)
+    )
   )
 )
 
