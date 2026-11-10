@@ -17,33 +17,48 @@ Sys.setenv("_JAVA_OPTIONS" = "-Xmx4g") # Sets the Java maximum heap space to 4GB
 Sys.setenv("VROOM_THREADS" = 1) # Sets the number of threads to 1 to avoid deadlocks on file system
 
 ##=========== START OF INPUTS ==========
-# These values point at the local OHDSI Lab on this machine. Change them for
-# any other database.
+# Study configuration ---------------------------------------------------------
+# All machine-specific values come from the config files, not from this script:
 #
-#   cdm_vocab is a view layer over the lab's clinical schema (cdm) and its
-#   vocabulary schema (vocab). The lab keeps the two apart; this study, like
-#   every other HADES analysis, needs them in a single schema. If your site has
-#   a normal OMOP CDM with the vocabulary tables in it, just use that schema
-#   name here (e.g. "cdm").
-cdmDatabaseSchema <- "cdm_vocab"
-workDatabaseSchema <- "can_build" # Where the study tables are written
-cohortTableName <- "can_build_cohort" # Where the cohorts will be written
-resultsFolder <- "results" # Where the output files will be written
-workFolder <- "strategusInternals" # Where the intermediate work files will be written
-databaseName <- "SYNTHEA10K" # Only used as a folder name for results from the study
-minCellCount <- 5 # Minimum cell count for inclusion in output tables
+#   config.yml         checked in. Shared settings (study name, folders, ...).
+#   config.local.yml   NOT checked in. Your database host, credentials, schema
+#                      names, Java path and JDBC driver folder. Copy
+#                      config.local.example.yml to config.local.yml and edit it.
+#
+# Anything you do not set in config.local.yml falls back to config.yml. Values
+# can also be supplied with OHDSI_* environment variables, which win over both.
+source("scriptsForStudyDesigner/getStudyConfig.R")
+config <- getStudyConfig()
 
-# Create the connection details for your CDM. The defaults below are the local
-# OHDSI Lab credentials; the environment variables let you point the same script
-# at another machine without editing it.
-# More details: https://ohdsi.github.io/DatabaseConnector/reference/createConnectionDetails.html
-connectionDetails <- DatabaseConnector::createConnectionDetails(
-  dbms = Sys.getenv("OHDSI_DBMS", "postgresql"),
-  server = Sys.getenv("OHDSI_SERVER", "127.0.0.1/postgres"),
-  port = as.integer(Sys.getenv("OHDSI_PORT", "5432")),
-  user = Sys.getenv("OHDSI_USER", "postgres"),
-  password = Sys.getenv("OHDSI_PASSWORD", "mypass")
-)
+cdmDatabaseSchema <- Sys.getenv("OHDSI_CDM_SCHEMA", config$cdmDatabaseSchema)
+workDatabaseSchema <- Sys.getenv("OHDSI_WORK_SCHEMA", config$workDatabaseSchema)
+cohortTableName <- Sys.getenv("OHDSI_COHORT_TABLE", config$cohortTableName)
+databaseName <- Sys.getenv("OHDSI_DATABASE_NAME", config$databaseName)
+minCellCount <- as.integer(Sys.getenv("OHDSI_MIN_CELL_COUNT", config$minCellCount))
+resultsFolder <- config$resultFolder # Where the output files will be written
+workFolder <- config$workFolder # Where the intermediate work files will be written
+
+# Java and the JDBC driver. DatabaseConnector 8 needs Java 11+ and the driver
+# folder passed explicitly.
+if (nzchar(config$javaHome %||% "")) {
+  Sys.setenv(JAVA_HOME = config$javaHome)
+}
+options(java.home = Sys.getenv("JAVA_HOME", config$javaHome %||% ""))
+Sys.setenv(DATABASECONNECTOR_JAR_FOLDER = config$pathToDriver %||% "")
+
+# Connection details.
+connectionDetails <- if (!is.null(config$connectionDetails)) {
+  config$connectionDetails
+} else {
+  DatabaseConnector::createConnectionDetails(
+    dbms = Sys.getenv("OHDSI_DBMS", "postgresql"),
+    server = Sys.getenv("OHDSI_SERVER", "127.0.0.1/postgres"),
+    port = as.integer(Sys.getenv("OHDSI_PORT", "5432")),
+    user = Sys.getenv("OHDSI_USER", "postgres"),
+    password = Sys.getenv("OHDSI_PASSWORD", ""),
+    pathToDriver = config$pathToDriver %||% ""
+  )
+}
 
 # You can use this snippet to test your connection
 #conn <- DatabaseConnector::connect(connectionDetails)
@@ -54,8 +69,6 @@ connectionDetails <- DatabaseConnector::createConnectionDetails(
 ##################################
 # DO NOT MODIFY BELOW THIS POINT
 ##################################
-config <- config::get()
-
 resultsFolder <- file.path(resultsFolder, databaseName)
 workFolder <- file.path(workFolder, databaseName)
 cohortTableNames <- CohortGenerator::getCohortTableNames(cohortTable = cohortTableName)
@@ -87,21 +100,6 @@ if (!dir.exists(workFolder)) {
 ParallelLogger::saveSettingsToJson(
   object = executionSettings,
   fileName = file.path(resultsFolder, "executionSettings.json")
-)
-
-# Build the calendar-year target cohorts -------------------
-# These cohorts are SQL, not Circe/ATLAS cohort definitions (see
-# scriptsForStudyDesigner/BuildCalendarYearCohorts.R), so Strategus cannot build
-# them as part of the run. They are created first, in the same cohort table the
-# Strategus modules read, and the CohortGenerator module then adds the outcome
-# cohorts on top.
-source("scriptsForStudyDesigner/BuildCalendarYearCohorts.R")
-
-buildCalendarYearCohorts(
-  connectionDetails = connectionDetails,
-  cdmDatabaseSchema = cdmDatabaseSchema,
-  cohortDatabaseSchema = workDatabaseSchema,
-  cohortTableNames = cohortTableNames
 )
 
 Strategus::execute(

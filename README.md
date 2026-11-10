@@ -74,9 +74,61 @@ scriptsForStudyCoordinator/            Results database, results model, Shiny ap
 template_docs/                         Generic documentation for this study template
 ```
 
+## Configuration
+
+Machine-specific settings live in **two** files:
+
+| File | Checked in? | Holds |
+|---|---|---|
+| `config.yml` | yes | Shared defaults: study name, result/work folders, file names |
+| `config.local.yml` | **no** (gitignored) | Your database host, credentials, schema names, Java path, JDBC driver folder, ATLAS URL |
+
+`config.local.yml` is created from the checked-in template and edited per
+machine:
+
+```bash
+cp config.local.example.yml config.local.yml
+$EDITOR config.local.yml
+```
+
+Any value you set there overrides `config.yml`; anything you leave out falls back
+to it. The layering is done by `scriptsForStudyDesigner/getStudyConfig.R`, which
+every script calls instead of `config::get()`:
+
+```r
+source("scriptsForStudyDesigner/getStudyConfig.R")
+config <- getStudyConfig()   # config.yml + config.local.yml
+```
+
+This means credentials never enter the repository, and each participant can
+point at their own database without touching a tracked file. IDE environment
+variables can override both for a single run.
+
+Typical `config.local.yml`:
+
+```yaml
+default:
+  cdmDatabaseSchema: "cdm_vocab"
+  workDatabaseSchema: "can_build"
+  cohortTableName: "can_build_cohort"
+  databaseName: "SYNTHEA10K"
+  minCellCount: 5
+  javaHome: "/opt/homebrew/opt/openjdk/libexec/openjdk.jdk/Contents/Home"
+  pathToDriver: "/path/to/jdbc"
+  connectionDetails: !expr |
+    DatabaseConnector::createConnectionDetails(
+      dbms = "postgresql",
+      server = "127.0.0.1/postgres",
+      port = 5432,
+      user = "postgres",
+      password = "********",
+      pathToDriver = "/path/to/jdbc"
+    )
+```
+
 ## Running the study
 
-1. Install R 4.6.1 and restore the package versions pinned in `renv.lock`:
+1. Install R 4.6.2 and restore the package versions pinned in `renv.lock`:
 
    ```r
    renv::restore()
@@ -84,7 +136,13 @@ template_docs/                         Generic documentation for this study temp
 
    Restart R afterwards.
 
-2. Create the analysis specification (only needed after a design change):
+2. Install **Java 17 or newer** and point `JAVA_HOME` at it (this is also set
+   from `config.local.yml`). The pinned DatabaseConnector 8.0.0 fails on Java 8
+   (`NoSuchMethodError: java.nio.ByteBuffer.clear()`).
+
+3. Create `config.local.yml` for your machine, as described above.
+
+4. Create the analysis specification (only needed after a design change):
 
    ```r
    source("scriptsForStudyDesigner/CreateStrategusAnalysisSpecifications.R")
@@ -92,8 +150,7 @@ template_docs/                         Generic documentation for this study temp
 
    This writes `inst/analysisSpecifications.json`.
 
-3. Edit the INPUTS section at the top of `ExecuteAnalyses.R` for your database,
-   then run it:
+5. Run the study:
 
    ```r
    source("ExecuteAnalyses.R")

@@ -1,0 +1,43 @@
+# Copy this file to config.local.yml and edit it for your machine.
+#
+# config.local.yml is NOT checked in to git (see .gitignore): it holds your
+# database host, credentials and schema names, so every participant keeps their
+# own and it never reaches the repository.
+#
+# Activate it with:
+#
+#   Sys.setenv(R_CONFIG_ACTIVE = "local")    # in R, before config::get()
+#
+# or:
+#
+#   R_CONFIG_ACTIVE=local Rscript ExecuteAnalyses.R
+#
+# Values you leave out fall back to the `default` block in config.yml.
+
+local:
+  # --- Database -------------------------------------------------------------
+  # Anything that connects to a CDM. On a normal site this is one schema that
+  # holds both the clinical tables and the vocabulary.
+  cdmDatabaseSchema: "cdm_vocab"       # OHDSI Lab: cdm + vocab view layer
+  workDatabaseSchema: "can_build"      # where study tables/cohorts are written
+  cohortTableName: "can_build_cohort"
+  databaseName: "SYNTHEA10K"           # used as a results sub-folder name
+  minCellCount: 5
+
+  # --- Java / JDBC ----------------------------------------------------------
+  # DatabaseConnector 8 needs Java 11+; the JDBC jar must be found explicitly.
+  javaHome: ""                                   # e.g. /opt/homebrew/opt/openjdk/libexec/openjdk.jdk/Contents/Home
+  pathToDriver: ""                               # folder holding the JDBC driver
+
+  connectionDetails: !expr |
+    DatabaseConnector::createConnectionDetails(
+      dbms = "postgresql",
+      server = "127.0.0.1/postgres",
+      port = 5432,
+      user = "postgres",
+      password = Sys.getenv("OHDSI_DB_PASSWORD", "CHANGE_ME"),
+      pathToDriver = Sys.getenv("DATABASECONNECTOR_JAR_FOLDER")
+    )
+
+  # --- Optional: your own ATLAS instance ------------------------------------
+  # webApiUrl: "https://atlas.your-org.org/WebAPI"

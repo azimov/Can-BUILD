@@ -1,6 +1,6 @@
 Can-BUILD 1.0.0
 ===============
-- Re-scope the study to incidence rates in calendar-year cohorts, computed with the
+- Re-scope the study to incidence rates by calendar year, computed with the
   HADES Characterization package (v4 settings API).
 - `CreateStrategusAnalysisSpecifications.R` now builds Characterization v4 settings
   objects (`createStudyPopulationSettings`, `createTargetBaselineSettings`,
@@ -13,14 +13,14 @@ Can-BUILD 1.0.0
   control and covariate-exclusion assets that only served estimation.
 - Remove the target-comparator-indication-subgroup machinery and all cohort
   subsetting, including the "above/below the line" split of the script.
-- Add one calendar-year target cohort per year (2015-2024), built from
-  `observation_period` in SQL (`inst/sql/sql_server/<year>.sql`,
-  `scriptsForStudyDesigner/BuildCalendarYearCohorts.R`). Circe/ATLAS cannot express
-  an observation-period cohort, so these are built before the Strategus run.
 - Add the fiscal-year target cohorts (1: 365 days prior observation, 2: 1095 days)
-  and a dummy outcome (3) until the real outcome cohorts are defined.
+  and a dummy outcome (3) until the real outcome cohorts are defined. Every cohort
+  comes from ATLAS via `DownloadAssets.R`; there is no custom cohort SQL.
 - Point `ExecuteAnalyses.R` at the local OHDSI Lab and document the `cdm_vocab`
   view layer the lab needs.
+- Machine-specific settings (connection, schema names, Java path, JDBC driver)
+  move to a gitignored `config.local.yml`, layered over `config.yml` by
+  `scriptsForStudyDesigner/getStudyConfig.R`.
 
 StrategusStudyRepoTemplate 2.0.3
 ===============

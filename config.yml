@@ -32,3 +32,20 @@ default:
   sftpRemoteFolderName: "covid19"
   sftpKeyFileName: "[location where you are storing: e.g. ~/keys/study-coordinator-covid19.dat]"
   sftpUserName: "[user name provided by the study coordinator: eg: study-coordinator-covid19]"
+
+# ==============================================================================
+# Local overrides
+# ==============================================================================
+# Machine-specific settings (database host, credentials, schema names, WebAPI
+# URL) belong in "config.local.yml", which is NOT checked in to git. Copy
+# config.local.example.yml to config.local.yml and edit it; every participant
+# keeps their own.
+#
+# To merge it into the base settings, export the active profile before
+# config::get() is called:
+#
+#   Sys.setenv(R_CONFIG_ACTIVE = "local")     # in R
+#   export R_CONFIG_ACTIVE=local              # in the shell
+#
+# Values present in config.local.yml override the `default` block above;
+# everything else falls back to it.

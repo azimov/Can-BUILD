@@ -18,7 +18,8 @@
 # https://ohdsi.github.io/Strategus/articles/WorkingWithResults.html
 # ##############################################################################
 source("scriptsForStudyCoordinator/ResultsSchemaHelperFunctions.R")
-config <- config::get()
+source("scriptsForStudyDesigner/getStudyConfig.R")
+config <- getStudyConfig()
 
 analysisSpecifications <- ParallelLogger::loadSettingsFromJson(
   fileName = file.path(config$projectRootFolder, "inst", config$studySpecificationFileName)

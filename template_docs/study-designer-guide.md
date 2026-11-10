@@ -91,12 +91,10 @@ After downloading assets, confirm that the cohort IDs and names match the study 
 ## Review Starting Assets
 
 This study has no starting assets to review: it uses only the cohorts listed in
-`inst/Cohorts.csv`. The calendar-year target cohorts are SQL and the outcome
-cohorts are Circe definitions.
+`inst/Cohorts.csv`, all of which are downloaded from ATLAS.
 
-The repository does include placeholder outcome cohorts (IDs 101 and 102). They
-exist so the pipeline can be built and tested before the real outcome cohorts
-are defined in ATLAS. Replace them before distributing the study - see the
+The repository includes a dummy outcome cohort (ID 3). It exists so the pipeline
+can be built and tested before the real outcome cohorts are defined in ATLAS. Replace them before distributing the study - see the
 [Placeholders](../README.md#placeholders) section of the README.
 
 If the study later adds estimation analyses (CohortMethod, SelfControlledCaseSeries),
@@ -111,9 +109,10 @@ This script loads the cohort assets and starting assets from `inst/`, defines th
 
 The main user-editable areas are:
 
-- `targetIds`: the calendar-year cohorts (cohort IDs are the years).
-- `outcomes`: outcome cohort IDs and clean windows. Both cohorts are placeholders
+- `targetIds`: the target cohorts (the two fiscal-year cohorts).
+- `outcomes`: outcome cohort IDs and clean windows. The outcome is a dummy
   until the real outcome cohorts are defined in ATLAS.
+- `studyPeriods`: the calendar periods each analysis is run over.
 - `riskWindowStart`, `startAnchor`, `riskWindowEnd`, `endAnchor`: the time-at-risk
   window used for the incidence rates.
 - `studyPopulationSettings`: prior observation, age, gender and study date
@@ -137,10 +136,8 @@ by using the `studySpecificationFileName` value in `config.yml`.
 
 This study uses three Strategus HADES modules:
 
-- CohortGenerator - builds the outcome cohorts (the calendar-year cohorts are
-  SQL and are built before the Strategus run, see
-  `scriptsForStudyDesigner/BuildCalendarYearCohorts.R`)
-- CohortDiagnostics - diagnostics for the outcome cohorts
+- CohortGenerator - builds all the cohorts
+- CohortDiagnostics - diagnostics for the cohorts
 - Characterization - baseline characteristics and incidence rates
 
 There is no estimation (CohortMethod, SelfControlledCaseSeries) and no prediction

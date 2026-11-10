@@ -23,40 +23,16 @@ prediction (PatientLevelPrediction) in this study.
 `DownloadAssets.R` downloads cohort definitions from ATLAS into `inst/`
 (`Cohorts.csv`, `inst/cohorts/*.json`, `inst/sql/sql_server/*.sql`).
 
-It is only needed for the cohorts that live in ATLAS - that is, the outcome
-cohorts. The calendar-year cohorts are not ATLAS cohorts: see
-[Calendar-year cohorts](#calendar-year-cohorts) below.
+Every cohort in the study comes from ATLAS, so this script is the only way
+cohorts get into the repository. There is no hand-written cohort SQL.
 
 To use it:
 
-1. Set `webApiUrl` in `config.yml` to your ATLAS instance.
+1. Set `webApiUrl` to your ATLAS instance. It is read from config.yml, or from
+   config.local.yml if you have one.
 2. List the cohorts you want in the `cohortsToDownload` table in
    `DownloadAssets.R` (ATLAS cohort ID, local cohort ID, cohort name).
 3. Run the script from the project root.
-
-## Calendar-year cohorts
-
-"Everyone under observation in calendar year Y" cannot be expressed as an
-ATLAS/Circe cohort definition, so these cohorts are plain SQL:
-
-```text
-inst/sql/calendar_year/2015.sql ... inst/sql/calendar_year/2024.sql
-```
-
-Each one takes the overlap of every person's `observation_period` with that
-year: cohort start is the first day the person was observed in the year, cohort
-end is the last. The person-years in those cohorts are the denominators of the
-incidence rates.
-
-These cohorts have no Circe JSON, so they are kept out of `inst/Cohorts.csv`
-(which `DownloadAssets.R` rewrites) and are built directly with CohortGenerator
-by `BuildCalendarYearCohorts.R` before the Strategus run.
-
-To add or remove a year:
-
-1. Copy an existing `inst/sql/calendar_year/<year>.sql` and change the year.
-   The file name is the cohort ID.
-2. Update `targetYears` in `CreateStrategusAnalysisSpecifications.R`.
 
 ## Create the analysis specification
 
@@ -76,7 +52,7 @@ It contains three things you edit.
 targetIds <- 2015:2024
 ```
 
-The cohort IDs of the calendar-year cohorts.
+The cohort IDs of the target cohorts (the two fiscal-year cohorts).
 
 ### 2. Outcomes
 
@@ -104,8 +80,10 @@ riskWindowEnd <- 0
 endAnchor <- "cohort end"
 ```
 
-For a calendar-year cohort this means "from the day after the person's first
-observed day in the year to their last observed day in the year".
+These are observation cohorts, not drug exposures: each cohort starts on
+1 April and ends the following 31 March. The incidence design follows people for
+one year from the cohort start; the point-prevalence design measures on the index
+date. See `Time at risk` in `CreateStrategusAnalysisSpecifications.R`.
 
 ## How the settings fit together (Characterization v4)
 
@@ -137,11 +115,8 @@ Strategus in 1.6.0) and Characterization >= 4.0.0.
 
 The specification in this repository contains:
 
-- **CohortGeneratorModule** - builds the outcome cohorts (the calendar-year
-  cohorts are built before the run, see above).
-- **CohortDiagnosticsModule** - cohort diagnostics for the outcome cohorts.
-  The calendar-year cohorts are SQL-only, so there is no concept-level content
-  to diagnose.
+- **CohortGeneratorModule** - builds all the cohorts.
+- **CohortDiagnosticsModule** - cohort diagnostics for the cohorts.
 - **CharacterizationModule** - baseline characteristics and incidence rates.
 
 Remove a module from `moduleSpecsList` at the bottom of

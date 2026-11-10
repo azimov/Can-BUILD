@@ -13,7 +13,8 @@ source("scriptsForStudyCoordinator/ResultsSchemaHelperFunctions.R")
 library(dplyr)
 library(Strategus)
 
-config <- config::get()
+source("scriptsForStudyDesigner/getStudyConfig.R")
+config <- getStudyConfig()
 
 # EvidenceSynthesis Settings ---------------------------------------------------
 esModuleSettingsCreator = EvidenceSynthesisModule$new()
