@@ -121,25 +121,9 @@ setup_database_settings <- function(project_root = getwd()) {
   }
 
   # --------------------------------------------------------------------------
-  # 1. Java
+  # 1. Database type and driver
   # --------------------------------------------------------------------------
-  heading("Step 1 of 5: Java")
-  cat("The R packages talk to the database through Java. Java 11 or newer is\n")
-  cat("required. If JAVA_HOME is already set, press Enter to keep it.\n\n")
-
-  java_home <- Sys.getenv("JAVA_HOME")
-  java_home <- ask("Folder where Java is installed (JAVA_HOME)", java_home)
-  if (nzchar(java_home)) {
-    Sys.setenv(JAVA_HOME = java_home)
-    cat("  JAVA_HOME set to: ", java_home, "\n", sep = "")
-  } else {
-    cat("  JAVA_HOME left unset - the R package will look for Java itself.\n")
-  }
-
-  # --------------------------------------------------------------------------
-  # 2. Database type and driver
-  # --------------------------------------------------------------------------
-  heading("Step 2 of 5: Database type and driver")
+  heading("Step 1 of 4: Database type and driver")
   cat("Which database are you connecting to? Examples: postgresql, sql server,\n")
   cat("oracle, snowflake, redshift, bigquery.\n\n")
 
@@ -172,9 +156,9 @@ setup_database_settings <- function(project_root = getwd()) {
   cat("  Driver folder: ", driver_folder, "\n", sep = "")
 
   # --------------------------------------------------------------------------
-  # 3. Connecting
+  # 2. Connecting
   # --------------------------------------------------------------------------
-  heading("Step 3 of 5: Connecting")
+  heading("Step 2 of 4: Connecting")
   cat("Enter the connection details your database administrator gave you.\n")
   cat("The format of 'Server' depends on the database type; for PostgreSQL it\n")
   cat("is usually host/database, for example: db.example.org/cdm\n\n")
@@ -213,9 +197,9 @@ setup_database_settings <- function(project_root = getwd()) {
   cat("  Connected.\n")
 
   # --------------------------------------------------------------------------
-  # 4. Schemas, and a check that the data is where you said it is
+  # 3. Schemas, and a check that the data is where you said it is
   # --------------------------------------------------------------------------
-  heading("Step 4 of 5: Schemas")
+  heading("Step 3 of 4: Schemas")
   cat("The CDM schema is where your OMOP tables live. It must contain BOTH the\n")
   cat("patient data and the vocabulary (concept, concept_ancestor, ...).\n")
   cat("If yours are in separate schemas, ask for a schema or view that has both.\n\n")
@@ -279,9 +263,9 @@ setup_database_settings <- function(project_root = getwd()) {
   cat("  Disconnected.\n")
 
   # --------------------------------------------------------------------------
-  # 5. Write the file
+  # 4. Write the file
   # --------------------------------------------------------------------------
-  heading("Step 5 of 5: Writing your settings")
+  heading("Step 4 of 4: Writing your settings")
 
   config_file <- file.path(project_root, "config.local.yml")
 
@@ -310,7 +294,6 @@ setup_database_settings <- function(project_root = getwd()) {
     paste0("  cohortTableName: ", yaml_quote(cohort_table)),
     paste0("  databaseName: ", yaml_quote(database_name)),
     "  minCellCount: 5",
-    paste0("  javaHome: ", yaml_quote(java_home)),
     paste0("  pathToDriver: ", yaml_quote(driver_folder)),
     "",
     "  connectionDetails: !expr |",

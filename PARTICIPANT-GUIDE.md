@@ -65,12 +65,22 @@ It is interactive on purpose: it asks you each value, shows you what it has
 found, and prints the whole file it writes so you can read it. Press Enter to
 accept the suggested value.
 
+The script does not ask about Java. DatabaseConnector needs Java 17 or newer and
+reads `JAVA_HOME`, so set it before running if your default `java` is older:
+
+```bash
+export JAVA_HOME=/path/to/jdk-17-or-newer
+```
+
+If Java is too old the connection test fails with
+`NoSuchMethodError: java.nio.ByteBuffer.clear()`, and the script tells you so
+without writing anything.
+
 If you run it from a script rather than typing it into a console, it does
 nothing and says so - it will not invent settings on your behalf.
 
 | What it asks | Notes |
 |---|---|
-| `JAVA_HOME` | Folder of your Java 17+ install. Leave as-is if already set. |
 | Database type | `postgresql`, `sql server`, `oracle`, `snowflake`, … |
 | JDBC driver folder | Point at an existing folder, or leave blank and let it download the driver for you |
 | Server | `host/database` for PostgreSQL, e.g. `db.example.org/cdm` |
