@@ -4,15 +4,11 @@
 # database host, credentials and schema names, so every participant keeps their
 # own and it never reaches the repository.
 #
-# Activate it with:
+# Easiest: run the setup script, which writes this file for you.
 #
-#   Sys.setenv(R_CONFIG_ACTIVE = "local")    # in R, before config::get()
+#   source("scriptsForStudyDesigner/SetupDatabaseSettings.R")
 #
-# or:
-#
-#   R_CONFIG_ACTIVE=local Rscript ExecuteAnalyses.R
-#
-# Values you leave out fall back to the `default` block in config.yml.
+# Values you leave out fall back to config.yml.
 
 local:
   # --- Database -------------------------------------------------------------
@@ -35,7 +31,7 @@ local:
       server = "127.0.0.1/postgres",
       port = 5432,
       user = "postgres",
-      password = Sys.getenv("OHDSI_DB_PASSWORD", "CHANGE_ME"),
+      password = Sys.getenv("OHDSI_DB_PASSWORD"),
       pathToDriver = Sys.getenv("DATABASECONNECTOR_JAR_FOLDER")
     )
 

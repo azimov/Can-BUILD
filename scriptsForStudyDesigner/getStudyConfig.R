@@ -1,20 +1,30 @@
 ################################################################################
 # Read the study configuration
 #
-# config::get() reads a single YAML file (config.yml) and returns one profile
-# from it. It has no notion of "this machine's overrides", and the file is
-# checked in to git, so anything machine-specific must not live there.
+# config::get() reads a single YAML file and returns one profile from it. It
+# insists that every file has a `default:` block, and it has no notion of
+# "this machine's overrides". config.yml is checked in, so anything
+# machine-specific must live elsewhere.
 #
-# This helper adds that layer:
+# getStudyConfig() adds that layer:
 #
 #   config <- getStudyConfig()
 #
-# returns the `default` profile from config.yml, with every value present in
-# config.local.yml layered on top. config.local.yml is gitignored, so each
-# participant keeps their own database host, credentials and schema names
-# without ever committing them.
+# returns the settings from config.yml with every value in config.local.yml
+# layered on top. config.local.yml is gitignored, so each participant keeps
+# their own database host, credentials and schema names without committing them.
 #
-# Values not set in config.local.yml fall back to config.yml.
+# config.local.yml may be written as:
+#
+#   local:            # block named after R_CONFIG_ACTIVE
+#     cdmDatabaseSchema: "..."
+#
+#   default:          # always applied
+#     cdmDatabaseSchema: "..."
+#
+#   cdmDatabaseSchema: "..."   # flat, no blocks at all
+#
+# Any of the three works. Values not set locally fall back to config.yml.
 ################################################################################
 
 getStudyConfig <- function(projectRootFolder = getwd(),
@@ -27,12 +37,37 @@ getStudyConfig <- function(projectRootFolder = getwd(),
     return(base)
   }
 
-  local <- config::get(file = localFile, config = profile)
-  # A local file written as `default:`/`local:` blocks is used as-is; a flat
-  # local file (no matching profile) also works, because config::get() falls
-  # back to its own `default` block.
-  merged <- utils::modifyList(as.list(base), as.list(local))
-  # projectRootFolder stays the project root even when overridden.
+  # Read the local file directly rather than via config::get(), which requires a
+  # `default:` block that an override file usually does not have.
+  # eval.expr = TRUE so that `!expr` values (e.g. createConnectionDetails(...))
+  # are evaluated.
+  local <- tryCatch(
+    yaml::read_yaml(localFile, eval.expr = TRUE),
+    error = function(e) {
+      stop("Could not read ", localFile, ": ", conditionMessage(e), call. = FALSE)
+    }
+  )
+  if (is.null(local) || length(local) == 0) {
+    return(base)
+  }
+
+  # Pick the block for the active profile. When R_CONFIG_ACTIVE is unset the
+  # profile is "default", but an override file normally writes its settings
+  # under `local:`, so prefer `local:` and fall back to `default:`. If neither
+  # block is present the file is a flat set of settings and is used as-is.
+  if (is.list(local[["local"]])) {
+    local <- local[["local"]]
+  } else if (is.list(local[[profile]])) {
+    local <- local[[profile]]
+  } else if (is.list(local[["default"]])) {
+    local <- local[["default"]]
+  }
+  if (is.null(local) || length(local) == 0) {
+    return(base)
+  }
+
+  merged <- utils::modifyList(as.list(base), local)
+  # projectRootFolder always stays the project root, even if overridden.
   merged$projectRootFolder <- projectRootFolder
   merged
 }

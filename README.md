@@ -74,6 +74,25 @@ scriptsForStudyCoordinator/            Results database, results model, Shiny ap
 template_docs/                         Generic documentation for this study template
 ```
 
+## Running on your own data (study-a-thon participants)
+
+If you are running this study at your site, follow
+**[PARTICIPANT-GUIDE.md](PARTICIPANT-GUIDE.md)**. In short:
+
+```r
+# 1. environment (once)
+renv::restore()                     # then restart R
+
+# 2. your database settings (once) - writes the gitignored config.local.yml
+source("scriptsForStudyDesigner/SetupDatabaseSettings.R")
+
+# 3. run
+source("ExecuteAnalyses.R")
+```
+
+You never edit a checked-in file: your database details live in
+`config.local.yml`, which is gitignored.
+
 ## Configuration
 
 Machine-specific settings live in **two** files:
