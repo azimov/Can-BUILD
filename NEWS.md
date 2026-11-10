@@ -17,8 +17,8 @@ Can-BUILD 1.0.0
   `observation_period` in SQL (`inst/sql/sql_server/<year>.sql`,
   `scriptsForStudyDesigner/BuildCalendarYearCohorts.R`). Circe/ATLAS cannot express
   an observation-period cohort, so these are built before the Strategus run.
-- Add placeholder outcome cohorts (IDs 101 and 102) until the real outcome cohorts
-  are defined in ATLAS.
+- Add the fiscal-year target cohorts (1: 365 days prior observation, 2: 1095 days)
+  and a dummy outcome (3) until the real outcome cohorts are defined.
 - Point `ExecuteAnalyses.R` at the local OHDSI Lab and document the `cdm_vocab`
   view layer the lab needs.
 

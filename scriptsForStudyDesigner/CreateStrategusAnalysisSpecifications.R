@@ -4,18 +4,23 @@
 # WHAT THIS STUDY DOES
 # --------------------
 # The primary output is INCIDENCE RATES: how often each outcome of interest
-# occurs per 100 person-years, in each calendar year.
+# occurs per 100 person-years, by calendar year. A point-prevalence analysis
+# runs alongside it.
 #
-#   Targets  : one cohort per calendar year (2015-2024). Everyone who is under
-#              observation at some point in that year, with person time running
-#              from their first observed day in the year to their last.
-#   Outcomes : two PLACEHOLDER outcome cohorts (see "Outcomes" below). The real
-#              outcome cohorts have not been defined in ATLAS yet.
+#   Targets  : cohort 1 = fiscal year cohort, 365 days prior observation
+#              cohort 2 = fiscal year cohort, 1095 days prior observation
+#              Anyone with observation on 1 April of each calendar year, with
+#              the fiscal year running to the following 31 March.
+#   Outcomes : cohort 3 = angioedema/urticaria (ATLAS id 1797622, a dummy)
 #   Modules  : CohortGenerator -> CohortDiagnostics -> Characterization (v4)
+#
+# Every cohort in this study is an ATLAS cohort: it is downloaded by
+# scriptsForStudyDesigner/DownloadAssets.R into inst/ and built by the
+# CohortGenerator module. There is no custom SQL in the study.
 #
 # REQUIREMENTS
 # ------------
-# R 4.6.1 and the package versions pinned in renv.lock. In particular this
+# R 4.6.2 and the package versions pinned in renv.lock. In particular this
 # script uses the Characterization v4 settings API, which requires
 # Strategus >= 1.6.0 (the CharacterizationModule now lives in Strategus) and
 # Characterization >= 4.0.0.
@@ -31,10 +36,9 @@ config <- config::get()
 # ==============================================================================
 # Cohort assets
 # ==============================================================================
-# inst/Cohorts.csv lists the cohorts that come from ATLAS - here, the outcome
-# cohorts. The calendar-year target cohorts are not ATLAS cohorts: they are
-# plain SQL in inst/sql/calendar_year/<year>.sql and are built by
-# BuildCalendarYearCohorts.R.
+# inst/Cohorts.csv lists the cohorts and where they came from in ATLAS. The
+# files it points at (inst/cohorts/*.json, inst/sql/sql_server/*.sql) are
+# written by scriptsForStudyDesigner/DownloadAssets.R.
 cohortDefinitionSet <- CohortGenerator::getCohortDefinitionSet(
   settingsFileName = file.path(config$projectRootFolder, "inst", "Cohorts.csv"),
   jsonFolder = file.path(config$projectRootFolder, "inst", "cohorts"),
@@ -42,47 +46,33 @@ cohortDefinitionSet <- CohortGenerator::getCohortDefinitionSet(
 )
 
 # ==============================================================================
-# Targets: the calendar-year cohorts
+# Targets
 # ==============================================================================
-# The cohort ID of a year cohort is the year itself, and there is one SQL file
-# per year. Add a year by adding targetYears and inst/sql/calendar_year/<year>.sql.
-targetYears <- 2015:2024
-targetIds <- targetYears
+# The two fiscal-year observation cohorts. Anyone with observation on 1 April
+# of each calendar year, with the fiscal year running to the following 31 March.
+# They differ only in how much prior observation they require (365 vs 1095 days).
+targetIds <- c(1, 2)
 
-yearSqlFiles <- list.files(
-  file.path(config$projectRootFolder, "inst", "sql", "calendar_year"),
-  pattern = "\\.sql$"
-)
-missingTargets <- setdiff(paste0(targetIds, ".sql"), yearSqlFiles)
+missingTargets <- setdiff(targetIds, cohortDefinitionSet$cohortId)
 if (length(missingTargets) > 0) {
   stop(
-    "No calendar-year cohort SQL found for: ",
-    paste(sub("\\.sql$", "", missingTargets), collapse = ", "),
-    " (expected in inst/sql/calendar_year/)"
+    "These target cohort IDs are not in inst/Cohorts.csv: ",
+    paste(missingTargets, collapse = ", ")
   )
 }
 
 # ==============================================================================
 # Outcomes
 # ==============================================================================
-# PLACEHOLDER OUTCOMES. The study outcome cohorts are not defined in ATLAS yet.
-# Cohorts 101 and 102 are stand-ins so that the pipeline can be built, tested
-# and demonstrated end to end. They are ordinary diabetes/hypertension
-# condition cohorts, clearly named PLACEHOLDER in the cohort set.
-#
-# To swap in the real outcome cohorts:
-#   1. define them in ATLAS,
-#   2. add them to the cohortsToDownload tribble in
-#      scriptsForStudyDesigner/DownloadAssets.R and run it,
-#   3. replace the cohort IDs below (and the rows in inst/Cohorts.csv),
-#   4. re-run this script.
+# Cohort 3 is a dummy outcome (ATLAS id 1797622). The large cleanWindow is there
+# so that the incidence design sees, at most, one event per person; it is not
+# used by the point-prevalence design below, which passes its own washout.
 #
 # cleanWindow is the number of days that must pass between two outcome events
 # before the second one counts as a new event.
 outcomes <- tibble::tribble(
   ~cohortId, ~cleanWindow,
-  101,       365,          # PLACEHOLDER outcome 1 - type 2 diabetes
-  102,       365           # PLACEHOLDER outcome 2 - essential hypertension
+  3,         99999 # Note that this is only for the incidence rate setting, not used in prevalent design
 )
 
 missingOutcomes <- setdiff(outcomes$cohortId, cohortDefinitionSet$cohortId)
@@ -96,14 +86,18 @@ if (length(missingOutcomes) > 0) {
 # ==============================================================================
 # Time at risk
 # ==============================================================================
-# For a calendar-year cohort the cohort start date is the first day the person
-# was observed in the year and the cohort end date is the last day. So a time
-# at risk of "day 1 to cohort end" is simply "the rest of the time we can see
-# them this year", which is exactly the denominator we want for incidence rates.
+# These are observation cohorts, not drug exposures: the cohort start date is
+# the fiscal year start and the cohort end date is the end of that fiscal year.
+
+# Incidence TAR: one year of follow-up from the cohort start.
 riskWindowStart <- 1
 startAnchor <- "cohort start"
-riskWindowEnd <- 0
-endAnchor <- "cohort end"
+riskWindowEnd <- 365
+endAnchor <- "cohort start"
+
+# Prevalence TAR: point prevalence on the index date.
+prevalenceRiskWindowStart <- 0
+prevalenceRiskWindowEnd <- 1
 
 # ==============================================================================
 # Characterization settings
@@ -113,72 +107,129 @@ endAnchor <- "cohort end"
 # cohorts to include and how to restrict them; each analysis (baseline, risk
 # factors, incidence, ...) then takes that study population plus its own
 # options.
-studyPopulationSettings <- Characterization::createStudyPopulationSettings(
-  targetIds = targetIds,
-  limitToFirstInNDays = 0, # keep every period of observation in the year
-  minPriorObservation = 0, # no prior observation requirement
-  minAge = NULL, # no age restriction
-  maxAge = NULL, # no age restriction
-  studyStartDate = NULL, # no calendar restriction beyond the year cohort itself
-  studyEndDate = NULL,
-  genderConceptIds = NULL # all genders
+#
+# One study population per study period: the first has no date restriction, the
+# rest are successive fiscal years. Each study population is paired with the
+# same baseline-covariate and incidence settings below.
+studyPeriods <- list(
+  list(startDate = NULL, endDate = NULL),
+  list(startDate = "20160401", endDate = "20170331"),
+  list(startDate = "20170401", endDate = "20180331"),
+  list(startDate = "20180401", endDate = "20190331"),
+  list(startDate = "20190401", endDate = "20200331"),
+  list(startDate = "20200401", endDate = "20210331"),
+  list(startDate = "20210401", endDate = "20220331"),
+  list(startDate = "20220401", endDate = "20230331"),
+  list(startDate = "20230401", endDate = "20240331"),
+  list(startDate = "20240401", endDate = "20250331"),
+  list(startDate = "20250401", endDate = "20260331"),
+  list(startDate = "20260401", endDate = "20270331")
 )
 
+studyPopulationSettings <- lapply(studyPeriods, function(period) {
+  Characterization::createStudyPopulationSettings(
+    targetIds = c(targetIds, outcomes$cohortId),
+    limitToFirstInNDays = 0, # keep every cohort episode
+    minPriorObservation = 365, # one year of prior observation
+    minAge = NULL, # no age restriction
+    maxAge = NULL, # no age restriction
+    studyStartDate = period$startDate,
+    studyEndDate = period$endDate,
+    genderConceptIds = NULL # all genders
+  )
+})
+
 # Baseline covariates. This is the Characterization default set with one
-# change: the day-level "time in cohort" feature is off. It builds one row per
-# cohort day per person (~25 million rows for ten year cohorts) and adds nothing
-# here, because every year cohort is about a year long.
-baselineCovariateSettings <- FeatureExtraction::createCovariateSettings(
-  useDemographicsGender = TRUE,
-  useDemographicsAge = TRUE,
-  useDemographicsAgeGroup = TRUE,
-  useDemographicsRace = TRUE,
-  useDemographicsEthnicity = TRUE,
-  useDemographicsIndexYear = TRUE,
-  useDemographicsIndexMonth = TRUE,
-  useDemographicsPriorObservationTime = TRUE,
-  useDemographicsPostObservationTime = TRUE,
-  useConditionGroupEraLongTerm = TRUE,
-  useConditionGroupEraShortTerm = TRUE,
-  useDrugGroupEraLongTerm = TRUE,
-  useDrugGroupEraShortTerm = TRUE,
-  useDrugGroupEraOverlapping = TRUE,
-  useProcedureOccurrenceLongTerm = TRUE,
-  useProcedureOccurrenceShortTerm = TRUE,
-  useMeasurementLongTerm = TRUE,
-  useMeasurementShortTerm = TRUE,
-  useObservationLongTerm = TRUE,
-  useObservationShortTerm = TRUE,
-  useDeviceExposureLongTerm = TRUE,
-  useDeviceExposureShortTerm = TRUE,
-  useVisitConceptCountLongTerm = TRUE,
-  useVisitConceptCountShortTerm = TRUE,
-  useCharlsonIndex = TRUE,
-  endDays = 0,
-  longTermStartDays = -365,
-  shortTermStartDays = -30
+# change: the day-level "time in cohort" feature is off, because it builds one
+# row per cohort day per person and is the most expensive covariate by far.
+#
+# The second entry adds the outcome cohort as a cohort-based covariate, so that
+# "had the outcome at any point before the index date" is captured for each
+# target.
+baselineCovariateSettings <- list(
+  FeatureExtraction::createCovariateSettings(
+    useDemographicsGender = TRUE,
+    useDemographicsAge = TRUE,
+    useDemographicsAgeGroup = TRUE,
+    useDemographicsRace = TRUE,
+    useDemographicsEthnicity = TRUE,
+    useDemographicsIndexYear = TRUE,
+    useDemographicsIndexMonth = TRUE,
+    useDemographicsPriorObservationTime = TRUE,
+    useDemographicsPostObservationTime = TRUE,
+    useConditionGroupEraLongTerm = TRUE,
+    useConditionGroupEraShortTerm = TRUE,
+    useDrugGroupEraLongTerm = TRUE,
+    useDrugGroupEraShortTerm = TRUE,
+    useDrugGroupEraOverlapping = TRUE,
+    useProcedureOccurrenceLongTerm = TRUE,
+    useProcedureOccurrenceShortTerm = TRUE,
+    useMeasurementLongTerm = TRUE,
+    useMeasurementShortTerm = TRUE,
+    useObservationLongTerm = TRUE,
+    useObservationShortTerm = TRUE,
+    useDeviceExposureLongTerm = TRUE,
+    useDeviceExposureShortTerm = TRUE,
+    useVisitConceptCountLongTerm = TRUE,
+    useVisitConceptCountShortTerm = TRUE,
+    useCharlsonIndex = TRUE,
+    endDays = 0,
+    longTermStartDays = -365,
+    shortTermStartDays = -30
+  ),
+  FeatureExtraction::createCohortBasedCovariateSettings(
+    # FeatureExtraction prespecifies analysis IDs 1-926 and requires <= 999,
+    # so use an ID in the free 927-999 window.
+    analysisId = 950,
+    # createCohortBasedCovariateSettings needs cohortId and cohortName, so join
+    # the outcome IDs back to the cohort definition set.
+    covariateCohorts = cohortDefinitionSet |>
+      dplyr::filter(cohortId %in% outcomes$cohortId) |>
+      dplyr::select(cohortId, cohortName) |>
+      dplyr::collect(),
+    startDay = -99999,
+    endDay = 0
+  )
 )
 
 characterizationSettings <- Characterization::createCharacterizationSettings(
-  # Who is in each year's denominator: age, sex, conditions, drugs, ...
+  # Who is in the denominator: age, sex, conditions, drugs, ...
   targetBaselineSettings = Characterization::createTargetBaselineSettings(
     studyPopulationSettings = studyPopulationSettings,
     covariateSettings = baselineCovariateSettings
   ),
-  # THE PRIMARY OUTPUT: events and person time per year, per outcome,
-  # stratified by age and gender, reported as a rate per 100 person-years.
-  cohortIncidenceSettings = Characterization::createCohortIncidenceSettings(
-    studyPopulationSettings = studyPopulationSettings,
-    outcomeIds = outcomes$cohortId,
-    outcomeWashoutDays = outcomes$cleanWindow,
-    riskWindowStart = riskWindowStart,
-    startAnchor = startAnchor,
-    riskWindowEnd = riskWindowEnd,
-    endAnchor = endAnchor,
-    byYear = FALSE, # the target cohort already is the calendar year
-    byGender = TRUE,
-    byAge = TRUE,
-    ageBreaks = seq(0, 110, by = 10)
+  # THE PRIMARY OUTPUT: events and person time by calendar year and stratified
+  # by age and gender, as a rate per 100 person-years, plus a point-prevalence
+  # design alongside it.
+  cohortIncidenceSettings = list(
+    # Incidence rate design
+    Characterization::createCohortIncidenceSettings(
+      studyPopulationSettings = studyPopulationSettings,
+      outcomeIds = outcomes$cohortId,
+      outcomeWashoutDays = outcomes$cleanWindow,
+      riskWindowStart = riskWindowStart,
+      startAnchor = startAnchor,
+      riskWindowEnd = riskWindowEnd,
+      endAnchor = endAnchor,
+      byYear = TRUE, # report rates per calendar year
+      byGender = TRUE,
+      byAge = TRUE,
+      ageBreaks = seq(0, 110, by = 5)
+    ),
+    # Point prevalence design
+    Characterization::createCohortIncidenceSettings(
+      studyPopulationSettings = studyPopulationSettings,
+      outcomeIds = outcomes$cohortId,
+      outcomeWashoutDays = 0,
+      riskWindowStart = prevalenceRiskWindowStart,
+      startAnchor = startAnchor,
+      riskWindowEnd = prevalenceRiskWindowEnd,
+      endAnchor = endAnchor,
+      byYear = TRUE, # report rates per calendar year
+      byGender = TRUE,
+      byAge = TRUE,
+      ageBreaks = seq(0, 110, by = 5)
+    )
   )
 )
 
@@ -189,11 +240,7 @@ characterizationSettings <- Characterization::createCharacterizationSettings(
 # CohortMethod / SelfControlledCaseSeries in this study, so those module
 # specifications are simply not created.
 
-## CohortGenerator: build the outcome cohorts -------------------------------
-# Only the outcome cohorts are in the shared resource: Strategus rebuilds every
-# cohort in it from its Circe JSON when it runs, and the calendar-year cohorts
-# have no JSON (they are built by BuildCalendarYearCohorts.R, called from
-# ExecuteAnalyses.R, before the run).
+## CohortGenerator: build the cohorts ---------------------------------------
 cgModuleSettingsCreator <- CohortGeneratorModule$new()
 cohortDefinitionShared <- cgModuleSettingsCreator$createCohortSharedResourceSpecifications(
   cohortDefinitionSet
@@ -202,12 +249,10 @@ cohortGeneratorModuleSpecifications <- cgModuleSettingsCreator$createModuleSpeci
   generateStats = TRUE
 )
 
-## CohortDiagnostics: check the outcome cohorts -----------------------------
-# Run on the outcome cohorts only. The calendar-year cohorts are SQL-defined
-# and have no concept-level content to diagnose.
+## CohortDiagnostics: check the cohorts --------------------------------------
 cdModuleSettingsCreator <- CohortDiagnosticsModule$new()
 cohortDiagnosticsModuleSpecifications <- cdModuleSettingsCreator$createModuleSpecifications(
-  cohortIds = outcomes$cohortId,
+  cohortIds = cohortDefinitionSet$cohortId,
   runInclusionStatistics = TRUE,
   runIncludedSourceConcepts = TRUE,
   runOrphanConcepts = TRUE,
@@ -216,7 +261,10 @@ cohortDiagnosticsModuleSpecifications <- cdModuleSettingsCreator$createModuleSpe
   runBreakdownIndexEvents = TRUE,
   runIncidenceRate = TRUE,
   runCohortRelationship = TRUE,
-  runTemporalCohortCharacterization = TRUE,
+  # Temporal cohort characterization builds a large covariate table and is the
+  # heaviest part of the module; it is off so the diagnostics fit alongside the
+  # other containers on a small machine.
+  runTemporalCohortCharacterization = FALSE,
   minCharacterizationMean = 0.01
 )
 
@@ -259,8 +307,7 @@ ParallelLogger::saveSettingsToJson(analysisSpecifications, specificationFileName
 
 message(
   "Analysis specification written to ", specificationFileName, "\n",
-  "  targets : calendar years ", min(targetIds), "-", max(targetIds),
-  " (", length(targetIds), " cohorts)\n",
-  "  outcomes: ", paste(outcomes$cohortId, collapse = ", "),
-  " (PLACEHOLDER cohorts)"
+  "  targets      : ", paste(targetIds, collapse = ", "), "\n",
+  "  outcomes     : ", paste(outcomes$cohortId, collapse = ", "), "\n",
+  "  study periods: ", length(studyPeriods), " (", length(studyPopulationSettings), " study populations)"
 )

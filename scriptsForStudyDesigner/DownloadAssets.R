@@ -24,9 +24,11 @@ authWebApi(authMethod = "none")
 #  - cohortName: a custom cohort name or set to NA to the ATLAS cohort name
 cohortsToDownload <- tibble::tribble(
   ~atlasCohortId, ~cohortId, ~cohortName,
-  1778211, 11, "celecoxib",
-  1790989, 21, "diclofenac",
-  1780946, 31, "GI Bleed"
+  # Placeholders from the OHDSI demo ATLAS (https://atlas-demo.ohdsi.org).
+  # Replace these rows with the real study cohorts.
+  1662241, 1, "new users of ACE inhibitors for hypertension",
+  1662246, 2, "new users of ARBs for hypertension",
+  1662245, 3, "first observed cough"
 )
 
 downloadCohortDefinitionSet(

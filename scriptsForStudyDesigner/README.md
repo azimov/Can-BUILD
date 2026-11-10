@@ -9,10 +9,11 @@ approval to execute the study.
 
 | | |
 |---|---|
-| Targets | One cohort per calendar year (2015-2024): everyone under observation in that year |
-| Outcomes | Placeholder cohorts 101 and 102 until the real outcome cohorts are defined in ATLAS |
-| Primary output | Incidence rate per 100 person-years, in each year, overall and by age and gender |
-| Modules | CohortGenerator, CohortDiagnostics (outcome cohorts), Characterization (v4) |
+| Targets | Fiscal year cohorts 1 and 2: observation on 1 April, year to 31 March, 365 vs 1095 days prior observation |
+| Outcomes | Cohort 3, a dummy outcome, until the real outcome cohorts are defined in ATLAS |
+| Primary output | Incidence rate per 100 person-years by calendar year, plus a point-prevalence design |
+| Study periods | 12: one unrestricted, plus 11 fiscal years from 2016/17 |
+| Modules | CohortGenerator, CohortDiagnostics, Characterization (v4) |
 
 There is no estimation (CohortMethod, SelfControlledCaseSeries) and no
 prediction (PatientLevelPrediction) in this study.
@@ -82,17 +83,17 @@ The cohort IDs of the calendar-year cohorts.
 ```r
 outcomes <- tibble::tribble(
   ~cohortId, ~cleanWindow,
-  101,       365,
-  102,       365
+  3,         99999
 )
 ```
 
 `cohortId` is the outcome cohort ID. `cleanWindow` is the number of days that
 must pass between two events before the second one counts as a new event.
 
-**These two cohorts are placeholders** until the real outcome cohorts are
-defined in ATLAS. Replace the IDs (and the rows in `inst/Cohorts.csv`) when
-they are.
+The large `cleanWindow` makes the incidence design see at most one event per
+person; the point-prevalence design passes its own washout of 0. **Cohort 3 is a
+dummy outcome** until the real outcome cohorts are defined in ATLAS. Replace the
+IDs (and the rows in `inst/Cohorts.csv`) when they are.
 
 ### 3. Time at risk
 

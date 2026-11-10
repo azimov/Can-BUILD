@@ -1,3 +1,4 @@
 atlas_id,cohort_id,cohort_name,logic_description,generate_stats
-NA,101,PLACEHOLDER outcome 1 - type 2 diabetes,PLACEHOLDER - replace with the real outcome cohort from ATLAS,TRUE
-NA,102,PLACEHOLDER outcome 2 - essential hypertension,PLACEHOLDER - replace with the real outcome cohort from ATLAS,TRUE
+1798688,1,Fiscal year cohort with 365 days prior observation,Anyone with observation on 1st April of each calendar year ending March 31st with 365 days prior observation,TRUE
+1798701,2,Fiscal year cohort with 1095 days prior observation,Anyone with observation on 1st April of each calendar year ending March 31st with 1095 days prior observation,TRUE
+1797622,3,Dummy outcome. If this is in the study you are a dummy,Placeholder outcome used to test the pipeline,TRUE
