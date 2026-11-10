@@ -91,6 +91,75 @@ give_up <- function(...) {
 }
 
 # ------------------------------------------------------------------------------
+# Check that the R->Java bridge works.
+#
+# The database packages talk to the database through Java. A broken or too-old
+# Java does not fail until the first query, with a message that says nothing
+# about Java ("NoSuchMethodError: java.nio.ByteBuffer.clear()"), so check it up
+# front and explain the fix.
+#
+# Returns TRUE if Java works, otherwise FALSE after printing what to do.
+# ------------------------------------------------------------------------------
+check_java <- function(quiet = FALSE) {
+  if (!quiet) {
+    cat("  Checking Java...\n")
+  }
+
+  # rJava starts a JVM on first use. If Java is missing or incompatible this
+  # errors, and the message is the only clue we get.
+  ok <- tryCatch({
+    rJava::.jinit()
+    TRUE
+  }, error = function(e) {
+    attr(e, "detail") <- conditionMessage(e)
+    FALSE
+  })
+
+  if (!ok) {
+    return(FALSE)
+  }
+
+  version <- tryCatch(
+    rJava::.jcall("java/lang/System", "S", "getProperty", "java.version"),
+    error = function(e) NA_character_
+  )
+
+  # DatabaseConnector 8 needs Java 11+. Below that, JDBC drivers fail with
+  # NoSuchMethodError on ByteBuffer.clear().
+  major <- suppressWarnings(as.integer(strsplit(version, "[._-]")[[1]][1]))
+  if (is.na(major)) {
+    return(TRUE) # cannot parse it; let the connection test decide
+  }
+  if (major < 11) {
+    attr(version, "too_old") <- TRUE
+  }
+
+  if (!quiet) {
+    cat("  Java version: ", version, "\n", sep = "")
+  }
+  structure(TRUE, version = version, major = major)
+}
+
+# Print what to do about a Java problem, then stop.
+explain_java_problem <- function(version = NULL) {
+  if (!is.null(version)) {
+    cat("\n  Java ", version, " is too old.\n", sep = "")
+    cat("  The database packages need Java 17 or newer.\n\n")
+  } else {
+    cat("\n  Java could not be started.\n\n")
+    cat("  The database packages need Java 17 or newer.\n\n")
+  }
+  cat("  To fix this, install a JDK (17 or newer) and point JAVA_HOME at it:\n\n")
+  cat("    # macOS / Linux\n")
+  cat("    export JAVA_HOME=/path/to/jdk-17\n\n")
+  cat("    # check it\n")
+  cat("    $JAVA_HOME/bin/java -version\n\n")
+  cat("  Then start a new R session and run this script again.\n")
+  cat("  (See https://ohdsi.github.io/Hades/rSetup.html for the HADES setup guide.)\n\n")
+  give_up("Java is required before the database can be reached.")
+}
+
+# ------------------------------------------------------------------------------
 # Section headings, so the user can follow where they are.
 # ------------------------------------------------------------------------------
 heading <- function(text) {
@@ -118,6 +187,21 @@ setup_database_settings <- function(project_root = getwd()) {
   if (!ask_yes_no("Are you ready to start?", default = TRUE)) {
     cat("\nOK - nothing was changed.\n")
     return(invisible(NULL))
+  }
+
+  # --------------------------------------------------------------------------
+  # Before anything else: can R talk to Java?
+  # --------------------------------------------------------------------------
+  heading("Checking Java")
+  java <- check_java()
+
+  if (isFALSE(java)) {
+    explain_java_problem()
+  }
+
+  java_major <- attr(java, "major")
+  if (!is.null(java_major) && !is.na(java_major) && java_major < 11) {
+    explain_java_problem(attr(java, "version"))
   }
 
   # --------------------------------------------------------------------------

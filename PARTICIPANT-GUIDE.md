@@ -65,16 +65,22 @@ It is interactive on purpose: it asks you each value, shows you what it has
 found, and prints the whole file it writes so you can read it. Press Enter to
 accept the suggested value.
 
-The script does not ask about Java. DatabaseConnector needs Java 17 or newer and
-reads `JAVA_HOME`, so set it before running if your default `java` is older:
+Before asking you anything, the script checks that Java works, because the
+database packages talk to your database through Java (17 or newer). If Java is
+missing or too old it stops straight away and prints how to fix it, rather than
+letting you fill in every answer and fail at the connection test:
 
-```bash
-export JAVA_HOME=/path/to/jdk-17-or-newer
+```
+  Java 1.8.0_472 is too old.
+  The database packages need Java 17 or newer.
+
+  To fix this, install a JDK (17 or newer) and point JAVA_HOME at it:
+
+    export JAVA_HOME=/path/to/jdk-17
 ```
 
-If Java is too old the connection test fails with
-`NoSuchMethodError: java.nio.ByteBuffer.clear()`, and the script tells you so
-without writing anything.
+Then start a new R session and run the script again. Nothing is written when
+this check fails.
 
 If you run it from a script rather than typing it into a console, it does
 nothing and says so - it will not invent settings on your behalf.
@@ -294,7 +300,7 @@ directed.
 
 | Symptom | Cause and fix |
 |---|---|
-| `NoSuchMethodError: java.nio.ByteBuffer.clear()` | Java 8. Install Java 17+ and set `javaHome` in `config.local.yml`. |
+| `NoSuchMethodError: java.nio.ByteBuffer.clear()` | Java 8. The setup script checks for this first; install Java 17+ and set `JAVA_HOME`. |
 | `The pathToDriver argument hasn't been specified` | Set `pathToDriver`, or run `DatabaseConnector::downloadJdbcDrivers("<dbms>")`. |
 | `You must provide a default configuration` | `config.yml` is missing — you are not in the project root, or the clone is incomplete. |
 | `could not find function "getStudyConfig"` | Source `scriptsForStudyDesigner/getStudyConfig.R` first, or run the scripts from the project root. |
