@@ -39,6 +39,14 @@ renv::restore()
 This installs the ~285 package versions pinned in `renv.lock`. It takes a while
 the first time. **Restart R afterwards.**
 
+> **Never run `renv::snapshot()` in this repository.** `renv.lock` is the
+> HADES-wide lock file and pins more than the study scripts `library()` on
+> purpose - CohortDiagnostics, OhdsiShinyAppBuilder, OhdsiShinyModules and
+> OhdsiReportGenerator are needed for the results app and the report generator.
+> A snapshot only records what the code visibly uses, so it would reduce the
+> lock file to 1 package and quietly remove all of them. See
+> [renv/README.md](renv/README.md).
+
 > If `renv::restore()` asks to install renv itself or seems to hang before R
 > starts, install renv into your system library once:
 > `install.packages("renv")`, then start R in the project directory again.
@@ -50,11 +58,15 @@ the first time. **Restart R afterwards.**
 Run the setup script, from the project root:
 
 ```r
-source("scriptsForStudyDesigner/SetupDatabaseSettings.R")
+source("SetupDatabaseSettings.R")
 ```
 
-It asks for a handful of values, tests the connection, checks your CDM, and
-writes `config.local.yml` for you. Pressing Enter accepts the value in brackets.
+It is interactive on purpose: it asks you each value, shows you what it has
+found, and prints the whole file it writes so you can read it. Press Enter to
+accept the suggested value.
+
+If you run it from a script rather than typing it into a console, it does
+nothing and says so - it will not invent settings on your behalf.
 
 | What it asks | Notes |
 |---|---|

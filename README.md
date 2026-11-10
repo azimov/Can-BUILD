@@ -82,9 +82,10 @@ If you are running this study at your site, follow
 ```r
 # 1. environment (once)
 renv::restore()                     # then restart R
+                                    # NEVER renv::snapshot() - see renv/README.md
 
-# 2. your database settings (once) - writes the gitignored config.local.yml
-source("scriptsForStudyDesigner/SetupDatabaseSettings.R")
+# 2. your database settings (once, interactive) - writes config.local.yml
+source("SetupDatabaseSettings.R")
 
 # 3. run
 source("ExecuteAnalyses.R")
@@ -154,6 +155,12 @@ default:
    ```
 
    Restart R afterwards.
+
+   > **Do not run `renv::snapshot()`.** The lock file pins HADES packages the
+   > study scripts do not `library()` directly - CohortDiagnostics,
+   > OhdsiShinyAppBuilder, OhdsiShinyModules, OhdsiReportGenerator - because the
+   > results app and report generator need them at run time. A snapshot records
+   > only visible usage and would remove them. See [renv/README.md](renv/README.md).
 
 2. Install **Java 17 or newer** and point `JAVA_HOME` at it (this is also set
    from `config.local.yml`). The pinned DatabaseConnector 8.0.0 fails on Java 8
