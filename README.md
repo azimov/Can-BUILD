@@ -156,11 +156,12 @@ default:
 
    Restart R afterwards.
 
-   > **Do not run `renv::snapshot()`.** The lock file pins HADES packages the
-   > study scripts do not `library()` directly - CohortDiagnostics,
-   > OhdsiShinyAppBuilder, OhdsiShinyModules, OhdsiReportGenerator - because the
-   > results app and report generator need them at run time. A snapshot records
-   > only visible usage and would remove them. See [renv/README.md](renv/README.md).
+   > **Read [renv/README.md](renv/README.md) before `renv::snapshot()`.** The lock
+   > file pins HADES packages the study scripts never `library()` directly -
+   > CohortDiagnostics, OhdsiShinyAppBuilder, OhdsiShinyModules,
+   > OhdsiReportGenerator - because the results app and the report generator need
+   > them at run time. `StudyPackages.R` in the project root lists them so a
+   > snapshot keeps them; without it, a snapshot would drop them.
 
 2. Install **Java 17 or newer** and point `JAVA_HOME` at it (this is also set
    from `config.local.yml`). The pinned DatabaseConnector 8.0.0 fails on Java 8

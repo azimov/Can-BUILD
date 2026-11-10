@@ -1,9 +1,9 @@
 # renv
 
-**Do not run `renv::snapshot()` in this repository.**
+**Snapshot only after the study package manifest is in place.**
 
 `renv.lock` is the HADES-wide lock file. It deliberately pins many more packages
-than this study's R scripts `library()` — including the ones needed to run the
+than this study's R scripts `library()`, including the ones needed to run the
 results Shiny app and the report generator:
 
 - CohortDiagnostics
@@ -14,10 +14,20 @@ results Shiny app and the report generator:
 
 `renv::snapshot()` records only the packages it can see the code using. Because
 the study's dependencies are loaded indirectly (Strategus loads its modules at
-run time, the Shiny app is a separate entry point), a snapshot collapses the
-lock file from 285 packages to 1 and silently removes everything above. The
-resulting lock file still installs, so the damage only appears when someone
-tries to run the app.
+run time, the Shiny app is a separate entry point), a snapshot taken without
+help drops the lock file to a single package and silently removes everything
+above. The resulting lock file still installs, so the damage only shows when
+someone opens the app.
+
+**`StudyPackages.R`, in the project root, prevents this.** It lists every package
+the study pack needs, as plain `library()` calls with a comment on each. renv
+finds dependencies by scanning for `library(pkg)` and `pkg::fun`, so those names
+are visible to the snapshot. Verified: `renv::dependencies()` reports 40
+dependencies from that file alone, and every one of them matches an entry in
+`renv.lock`.
+
+Do not wrap the calls in `if (FALSE)` or a string: renv skips anything it
+considers dead code, which makes the whole file invisible again.
 
 ## What to use instead
 

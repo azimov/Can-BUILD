@@ -39,13 +39,13 @@ renv::restore()
 This installs the ~285 package versions pinned in `renv.lock`. It takes a while
 the first time. **Restart R afterwards.**
 
-> **Never run `renv::snapshot()` in this repository.** `renv.lock` is the
-> HADES-wide lock file and pins more than the study scripts `library()` on
-> purpose - CohortDiagnostics, OhdsiShinyAppBuilder, OhdsiShinyModules and
-> OhdsiReportGenerator are needed for the results app and the report generator.
-> A snapshot only records what the code visibly uses, so it would reduce the
-> lock file to 1 package and quietly remove all of them. See
-> [renv/README.md](renv/README.md).
+> **Read [renv/README.md](renv/README.md) before running `renv::snapshot()`.**
+> `renv.lock` pins more than the study scripts `library()` on purpose -
+> CohortDiagnostics, OhdsiShinyAppBuilder, OhdsiShinyModules and
+> OhdsiReportGenerator are needed for the results app and the report generator,
+> which load at run time rather than being `library()`-ed. `StudyPackages.R`
+> lists all of them so a snapshot keeps them. You never need to snapshot: just
+> use `renv::restore()`.
 
 > If `renv::restore()` asks to install renv itself or seems to hang before R
 > starts, install renv into your system library once:
