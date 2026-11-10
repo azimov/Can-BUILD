@@ -102,7 +102,7 @@ library(readr)                 # reading CSV results
 library(data.table)            # used in cohort assembly
 library(jsonlite)              # reading and writing analysis specifications
 library(config)                # config.yml
-library(yaml)                  # config.local.yml
+library(yaml)                  # config.user.yml
 library(keyring)               # optional: store the database password
 library(getPass)               # hidden password prompt in SetupDatabaseSettings.R
 library(cli)                   # progress messages

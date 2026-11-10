@@ -1,0 +1,29 @@
+# Copy this to config.user.yml and edit it for your machine.
+#
+# config.user.yml is NOT committed to git (see .gitignore).
+#
+# The easiest way to create it is not to copy this file by hand, but to run the
+# wizard, which also tests the connection and writes .Renviron for you:
+#
+#   source("DatabaseSetup.R")
+#
+# The database password is NOT in this file. It goes in .Renviron:
+#
+#   OHDSI_PASSWORD_<DATABASE_NAME>="your password"
+#
+# ...where <DATABASE_NAME> is the databaseName below, uppercased with anything
+# that is not a letter or digit replaced by _. For this example that is
+# OHDSI_PASSWORD_MY_SITE. A single OHDSI_DB_PASSWORD also works for one database.
+#
+# Any value you leave out falls back to config.yml.
+
+dbms: "postgresql"
+server: "db.example.org/cdm"          # PostgreSQL: host/database
+user: "my_user"
+
+cdmDatabaseSchema: "my_cdm"           # clinical tables AND vocabulary
+workDatabaseSchema: "my_scratch"      # must be writable
+cohortTableName: "can_build_cohort"
+databaseName: "MY_SITE"               # names the results folder and password variable
+pathToDriver: "/path/to/jdbc"         # folder holding the driver .jar
+minCellCount: 5

@@ -4,7 +4,8 @@ This guide is for study-a-thon participants. It takes you from a fresh clone to
 aggregate results on your own OMOP CDM, in five steps.
 
 You do **not** edit any tracked file. Everything specific to your site lives in
-one untracked file, `config.local.yml`.
+two untracked files: `config.user.yml` for your settings and `.Renviron` for
+your password.
 
 ---
 
@@ -53,115 +54,83 @@ the first time. **Restart R afterwards.**
 
 ---
 
-## Step 2 — Create your database settings
+## Step 2 - Set up your database connection
 
-Run the setup script, from the project root:
+Run this from the project root:
 
 ```r
-source("SetupDatabaseSettings.R")
+source("DatabaseSetup.R")
 ```
 
-It is interactive on purpose: it asks you each value, shows you what it has
-found, and prints the whole file it writes so you can read it. Press Enter to
-accept the suggested value.
+It **checks** what you have and tells you what to fix. It does not ask questions
+unless you want it to.
 
-Before asking you anything, the script checks that Java works, because the
-database packages talk to your database through Java (17 or newer). If Java is
-missing or too old it stops straight away and prints how to fix it, rather than
-letting you fill in every answer and fail at the connection test:
+The checks, in order:
+
+1. Java can be started and is new enough
+2. `config.user.yml` exists
+3. Your password is available from `.Renviron`
+4. The JDBC driver is present
+5. The connection works
+6. The CDM schema is readable
+7. The vocabulary is in the same schema
+8. The work schema is writable
 
 ```
-  Java 1.8.0_472 is too old.
-  The database packages need Java 17 or newer.
-
-  To fix this, install a JDK (17 or newer) and point JAVA_HOME at it:
-
-    export JAVA_HOME=/path/to/jdk-17
+[ OK ] Java
+        Java 21.0.13
+[ OK ] Settings file
+[ OK ] Password
+[ OK ] JDBC driver
+[ OK ] Connection
+[ OK ] CDM schema
+        my_cdm: 12,345,678 people
+[ OK ] Vocabulary
+[ OK ] Work schema
 ```
 
-Then start a new R session and run the script again. Nothing is written when
-this check fails.
+If anything fails, it prints the exact fix. If you would rather be asked
+questions than read instructions, say `y` when it offers the wizard.
 
-If you run it from a script rather than typing it into a console, it does
-nothing and says so - it will not invent settings on your behalf.
+### Where your settings go
 
-| What it asks | Notes |
-|---|---|
-| Database type | `postgresql`, `sql server`, `oracle`, `snowflake`, … |
-| JDBC driver folder | Point at an existing folder, or leave blank and let it download the driver for you |
-| Server | `host/database` for PostgreSQL, e.g. `db.example.org/cdm` |
-| User / password | The password is **not** written to the file (see below) |
-| CDM schema | The schema holding your clinical tables **and** vocabulary |
-| Work schema | A schema you can write to; study cohort tables go here |
-| Cohort table name | Default `can_build_cohort` |
-| Database name | Short label, used as the results folder name |
+Two files, both gitignored, neither of which you have to write by hand:
 
-> **If your vocabulary is in a separate schema**, point `cdmDatabaseSchema` at a
-> schema or view layer that exposes both, or ask your DBA for one. The study
-> needs `concept`, `concept_ancestor` and `concept_relationship` alongside the
-> clinical tables.
-
-### What gets written
-
-`config.local.yml` — which is **gitignored**, so it never leaves your machine:
+| File | Holds | Committed? |
+|---|---|---|
+| `config.user.yml` | server, user, schemas, driver folder | no |
+| `.Renviron` | the password only | no |
 
 ```yaml
-local:
-  cdmDatabaseSchema: "my_cdm"
-  workDatabaseSchema: "my_scratch"
-  cohortTableName: "can_build_cohort"
-  databaseName: "MY_SITE"
-  minCellCount: 5
-  javaHome: "/path/to/java"
-  pathToDriver: "/path/to/jdbc"
-
-  connectionDetails: !expr |
-    DatabaseConnector::createConnectionDetails(
-      dbms = "postgresql",
-      server = "db.example.org/cdm",
-      user = "my_user",
-      password = Sys.getenv("OHDSI_DB_PASSWORD"),
-      pathToDriver = "/path/to/jdbc"
-    )
+# config.user.yml
+dbms: "postgresql"
+server: "db.example.org/cdm"
+user: "my_user"
+cdmDatabaseSchema: "my_cdm"
+workDatabaseSchema: "my_scratch"
+cohortTableName: "can_build_cohort"
+databaseName: "MY_SITE"
+pathToDriver: "/path/to/jdbc"
 ```
-
-### Why the password isn't in the file
-
-It is read from the `OHDSI_DB_PASSWORD` environment variable at run time. Set it
-in your R session before running the study:
-
-```r
-Sys.setenv(OHDSI_DB_PASSWORD = keyring::key_get("ohdsi"))
-```
-
-or, in the shell:
 
 ```bash
-export OHDSI_DB_PASSWORD='...'
+# .Renviron - password only, never in the YAML
+OHDSI_PASSWORD_MY_SITE="your password"
 ```
 
-If you would rather write the password into `config.local.yml` (it is not
-committed), replace the `Sys.getenv(...)` call with the literal value. For
-passwordless or integrated authentication, delete the password line.
+The password variable is `OHDSI_PASSWORD_<DATABASE_NAME>`, where `DATABASE_NAME`
+is the `databaseName` above, uppercased. A plain `OHDSI_DB_PASSWORD` also works.
 
-### Doing it by hand
+R reads `.Renviron` **only at startup**, so after creating or changing it,
+restart R. The check script detects this case and tells you.
 
-You can skip the script entirely:
+### Creating the files
 
-```bash
-cp config.local.example.yml config.local.yml
-$EDITOR config.local.yml
-```
-
-Then check it loads:
-
-```r
-source("scriptsForStudyDesigner/getStudyConfig.R")
-config <- getStudyConfig()
-config$cdmDatabaseSchema
-```
-
----
+- **Wizard:** run `source("DatabaseSetup.R")` and answer `y` when offered, or
+  call `runDatabaseWizard()` directly. It tests the connection and writes both
+  files.
+- **By hand:** `cp config.user.example.yml config.user.yml`, edit it, and add
+  the password line to `.Renviron`.
 
 ## Step 3 — Check the connection and that your CDM has the data
 

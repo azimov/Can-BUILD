@@ -84,67 +84,68 @@ If you are running this study at your site, follow
 renv::restore()                     # then restart R
                                     # NEVER renv::snapshot() - see renv/README.md
 
-# 2. your database settings (once, interactive) - writes config.local.yml
-source("SetupDatabaseSettings.R")
+# 2. check your database setup (or run the wizard)
+source("DatabaseSetup.R")
 
 # 3. run
 source("ExecuteAnalyses.R")
 ```
 
 You never edit a checked-in file: your database details live in
-`config.local.yml`, which is gitignored.
+`config.user.yml` and the password in `.Renviron`, both gitignored.
 
 ## Configuration
 
-Machine-specific settings live in **two** files:
+Settings are split by whether they are secret:
 
 | File | Checked in? | Holds |
 |---|---|---|
-| `config.yml` | yes | Shared defaults: study name, result/work folders, file names |
-| `config.local.yml` | **no** (gitignored) | Your database host, credentials, schema names, Java path, JDBC driver folder, ATLAS URL |
+| `config.yml` | yes | Study defaults: result/work folders, file names, study name |
+| `config.user.yml` | **no** | Your database server, user, schema names, JDBC driver folder |
+| `.Renviron` | **no** | Your database password only |
 
-`config.local.yml` is created from the checked-in template and edited per
-machine:
+Keeping the password out of the YAML means it cannot be committed by accident,
+and `config.user.yml` stays readable and diffable.
 
-```bash
-cp config.local.example.yml config.local.yml
-$EDITOR config.local.yml
+Check your setup at any time, or have it set up for you:
+
+```r
+source("DatabaseSetup.R")     # checks what you have, prints exactly what to fix
 ```
 
-Any value you set there overrides `config.yml`; anything you leave out falls back
-to it. The layering is done by `scriptsForStudyDesigner/getStudyConfig.R`, which
-every script calls instead of `config::get()`:
+If anything is missing it offers the wizard. Or call it directly:
+
+```r
+runDatabaseWizard()
+```
+
+Both entry points are documented in the [participant guide](PARTICIPANT-GUIDE.md#step-2---set-up-your-database-connection).
+
+### Reading the settings in code
 
 ```r
 source("scriptsForStudyDesigner/getStudyConfig.R")
-config <- getStudyConfig()   # config.yml + config.local.yml
+config <- getStudyConfig()          # config.yml + config.user.yml
+db     <- studyDatabaseSettings()   # just the database settings, password resolved
+details <- studyConnectionDetails() # ConnectionDetails, ready to connect
 ```
 
-This means credentials never enter the repository, and each participant can
-point at their own database without touching a tracked file. IDE environment
-variables can override both for a single run.
+### The password
 
-Typical `config.local.yml`:
+A named variable, so several databases can sit side by side:
 
-```yaml
-default:
-  cdmDatabaseSchema: "cdm_vocab"
-  workDatabaseSchema: "can_build"
-  cohortTableName: "can_build_cohort"
-  databaseName: "SYNTHEA10K"
-  minCellCount: 5
-  javaHome: "/opt/homebrew/opt/openjdk/libexec/openjdk.jdk/Contents/Home"
-  pathToDriver: "/path/to/jdbc"
-  connectionDetails: !expr |
-    DatabaseConnector::createConnectionDetails(
-      dbms = "postgresql",
-      server = "127.0.0.1/postgres",
-      port = 5432,
-      user = "postgres",
-      password = "********",
-      pathToDriver = "/path/to/jdbc"
-    )
+```bash
+OHDSI_PASSWORD_<DATABASE_NAME>="your password"
 ```
+
+`<DATABASE_NAME>` is the `databaseName` from `config.user.yml`, uppercased, with
+anything that is not a letter or digit replaced by `_`. A plain
+`OHDSI_DB_PASSWORD` also works.
+
+R reads `.Renviron` **only at startup**, so restart R after editing it.
+`DatabaseSetup.R` detects the case where the variable is present in the file but
+not yet loaded and tells you to restart, rather than reporting the password as
+missing.
 
 ## Running the study
 
@@ -164,10 +165,11 @@ default:
    > snapshot keeps them; without it, a snapshot would drop them.
 
 2. Install **Java 17 or newer** and point `JAVA_HOME` at it (this is also set
-   from `config.local.yml`). The pinned DatabaseConnector 8.0.0 fails on Java 8
+   from the environment). The pinned DatabaseConnector 8.0.0 fails on Java 8
    (`NoSuchMethodError: java.nio.ByteBuffer.clear()`).
 
-3. Create `config.local.yml` for your machine, as described above.
+3. Create `config.user.yml` and `.Renviron` for your machine, by running
+   `source("DatabaseSetup.R")` and following the prompts (see Configuration).
 
 4. Create the analysis specification (only needed after a design change):
 

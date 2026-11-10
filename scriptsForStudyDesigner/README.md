@@ -29,7 +29,7 @@ cohorts get into the repository. There is no hand-written cohort SQL.
 To use it:
 
 1. Set `webApiUrl` to your ATLAS instance. It is read from config.yml, or from
-   config.local.yml if you have one.
+   config.user.yml if you have one.
 2. List the cohorts you want in the `cohortsToDownload` table in
    `DownloadAssets.R` (ATLAS cohort ID, local cohort ID, cohort name).
 3. Run the script from the project root.

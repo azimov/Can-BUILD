@@ -18,47 +18,41 @@ Sys.setenv("VROOM_THREADS" = 1) # Sets the number of threads to 1 to avoid deadl
 
 ##=========== START OF INPUTS ==========
 # Study configuration ---------------------------------------------------------
-# All machine-specific values come from the config files, not from this script:
+# Database settings come from config.user.yml (yours, not committed) and the
+# password from .Renviron (also not committed):
 #
-#   config.yml         checked in. Shared settings (study name, folders, ...).
-#   config.local.yml   NOT checked in. Your database host, credentials, schema
-#                      names, Java path and JDBC driver folder. Copy
-#                      config.local.example.yml to config.local.yml and edit it.
+#   config.yml         checked in. Study defaults.
+#   config.user.yml    NOT checked in. Your server, schemas, driver folder.
+#   .Renviron          NOT checked in. The database password only.
 #
-# Anything you do not set in config.local.yml falls back to config.yml. Values
-# can also be supplied with OHDSI_* environment variables, which win over both.
+# To check your setup, or be walked through creating those files:
+#
+#   source("DatabaseSetup.R")
+#
+# Anything you leave out of config.user.yml falls back to config.yml. Every
+# value can also be set with an OHDSI_* environment variable, which wins.
 source("scriptsForStudyDesigner/getStudyConfig.R")
 config <- getStudyConfig()
+db <- studyDatabaseSettings(config)
 
-cdmDatabaseSchema <- Sys.getenv("OHDSI_CDM_SCHEMA", config$cdmDatabaseSchema)
-workDatabaseSchema <- Sys.getenv("OHDSI_WORK_SCHEMA", config$workDatabaseSchema)
-cohortTableName <- Sys.getenv("OHDSI_COHORT_TABLE", config$cohortTableName)
-databaseName <- Sys.getenv("OHDSI_DATABASE_NAME", config$databaseName)
-minCellCount <- as.integer(Sys.getenv("OHDSI_MIN_CELL_COUNT", config$minCellCount))
+cdmDatabaseSchema <- Sys.getenv("OHDSI_CDM_SCHEMA", db$cdmDatabaseSchema)
+workDatabaseSchema <- Sys.getenv("OHDSI_WORK_SCHEMA", db$workDatabaseSchema)
+cohortTableName <- Sys.getenv("OHDSI_COHORT_TABLE", db$cohortTableName)
+databaseName <- Sys.getenv("OHDSI_DATABASE_NAME", db$databaseName)
+minCellCount <- as.integer(Sys.getenv("OHDSI_MIN_CELL_COUNT", db$minCellCount))
 resultsFolder <- config$resultFolder # Where the output files will be written
 workFolder <- config$workFolder # Where the intermediate work files will be written
 
-# Java and the JDBC driver. DatabaseConnector 8 needs Java 11+ and the driver
-# folder passed explicitly.
+# DatabaseConnector 8 needs Java 11+ and the JDBC driver folder passed
+# explicitly. JAVA_HOME is read from the environment; DatabaseSetup.R checks it.
 if (nzchar(config$javaHome %||% "")) {
   Sys.setenv(JAVA_HOME = config$javaHome)
 }
-options(java.home = Sys.getenv("JAVA_HOME", config$javaHome %||% ""))
-Sys.setenv(DATABASECONNECTOR_JAR_FOLDER = config$pathToDriver %||% "")
+Sys.setenv(DATABASECONNECTOR_JAR_FOLDER = db$pathToDriver %||% "")
 
-# Connection details.
-connectionDetails <- if (!is.null(config$connectionDetails)) {
-  config$connectionDetails
-} else {
-  DatabaseConnector::createConnectionDetails(
-    dbms = Sys.getenv("OHDSI_DBMS", "postgresql"),
-    server = Sys.getenv("OHDSI_SERVER", "127.0.0.1/postgres"),
-    port = as.integer(Sys.getenv("OHDSI_PORT", "5432")),
-    user = Sys.getenv("OHDSI_USER", "postgres"),
-    password = Sys.getenv("OHDSI_PASSWORD", ""),
-    pathToDriver = config$pathToDriver %||% ""
-  )
-}
+# Connection details. The password is read from the environment by
+# studyConnectionDetails(), so it never appears in this script or in the YAML.
+connectionDetails <- studyConnectionDetails(db, config)
 
 # You can use this snippet to test your connection
 #conn <- DatabaseConnector::connect(connectionDetails)

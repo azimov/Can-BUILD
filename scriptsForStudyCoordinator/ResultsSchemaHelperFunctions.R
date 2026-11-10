@@ -1,4 +1,4 @@
-grantReadOnlyPermissions <- function(config = config::get()) {
+grantReadOnlyPermissions <- function(config = getStudyConfig()) {
   if (tolower(config$resultsConnectionDetails$dbms) == "postgresql") {
     if (config$resultsDatabaseSchema == "") {
       stop("resultsDatabaseSchema is empty. Please set this value in the config.yml")
@@ -34,7 +34,7 @@ grantReadOnlyPermissions <- function(config = config::get()) {
   }
 }
 
-analyzeAllTables <- function(config = config::get()) {
+analyzeAllTables <- function(config = getStudyConfig()) {
   if (tolower(config$resultsConnectionDetails$dbms) == "postgresql") {
     if (config$resultsDatabaseSchema == "") {
       stop("resultsDatabaseSchema is empty. Please set this value in the config.yml")

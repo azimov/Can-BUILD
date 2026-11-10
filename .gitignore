@@ -77,3 +77,6 @@ config.local.yml
 
 # JetBrains IDE
 .idea/
+
+# Local, machine-specific study settings (see DatabaseSetup.R)
+config.user.yml

@@ -18,9 +18,12 @@ Can-BUILD 1.0.0
   comes from ATLAS via `DownloadAssets.R`; there is no custom cohort SQL.
 - Point `ExecuteAnalyses.R` at the local OHDSI Lab and document the `cdm_vocab`
   view layer the lab needs.
-- Machine-specific settings (connection, schema names, Java path, JDBC driver)
-  move to a gitignored `config.local.yml`, layered over `config.yml` by
-  `scriptsForStudyDesigner/getStudyConfig.R`.
+- Machine-specific settings move to two gitignored files: `config.user.yml`
+  for the server, schemas and JDBC driver folder, and `.Renviron` for the
+  database password only, so secrets never sit in YAML.
+- `DatabaseSetup.R` checks a site's setup (Java, settings, password, driver,
+  connection, CDM, vocabulary, work schema) and prints the exact fix for each
+  failure, with an optional wizard that writes the files.
 
 StrategusStudyRepoTemplate 2.0.3
 ===============
