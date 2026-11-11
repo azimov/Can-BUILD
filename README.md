@@ -157,6 +157,10 @@ missing.
 
    Restart R afterwards.
 
+   > **`renv.lock` is frozen before any site execution.** Sites restore it as it
+   > is; a change to the lock goes through a pull request to `main` before sites
+   > run, never during a site run.
+
    > **Read [renv/README.md](renv/README.md) before `renv::snapshot()`.** The lock
    > file pins HADES packages the study scripts never `library()` directly -
    > CohortDiagnostics, OhdsiShinyAppBuilder, OhdsiShinyModules,
